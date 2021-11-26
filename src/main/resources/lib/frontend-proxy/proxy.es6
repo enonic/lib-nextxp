@@ -58,7 +58,7 @@ const proxy = function (req) {
             // contentType: 'text/html',
             connectionTimeout: 5000,
             headers: {
-                [FROM_XP_PARAM]: "preview",
+                [FROM_XP_PARAM]: req.headers[FROM_XP_PARAM] || "type",
                 [XP_RENDER_MODE_HEADER]: req.mode,
             },
             body: null, // JSON.stringify({ variables: {} }),
