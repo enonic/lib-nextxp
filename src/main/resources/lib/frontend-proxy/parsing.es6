@@ -10,15 +10,15 @@ import { getFrontendServerUrl, PROXY_MATCH_PATTERN } from "./connection-config";
  *
  * Eg. for a content with _path value '/mysite/my/sub/item', returns '/my/sub/item'.
  *
- * @param content portal.getContent() object
+ * @param contentPath _path of current content item, if any
  * @param sitePath ._path from portal.getSite()
  * @returns {string} Site relative content path
  */
-const getSiteRelativeContentPath = (content, sitePath) => {
-    if (!content._path.startsWith(sitePath)) {
-        throw Error("content._path " + JSON.stringify(content._path) + " was expected to start with sitePath " + JSON.stringify(sitePath));
+const getSiteRelativeContentPath = (contentPath = "", sitePath) => {
+    if (!contentPath.startsWith(sitePath)) {
+        return contentPath
     }
-    return content._path.substring(sitePath.length)
+    return contentPath.substring(sitePath.length)
         // Normalizing for variations in input and vhost: always start with a slash, never end with one (unless root)
         .replace(/\/*$/, '')
         .replace(/^\/*/, '/');
@@ -111,7 +111,7 @@ const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
 export const parseFrontendRequestPath = (req) => {
 
     const site = portalLib.getSite();
-    const content = portalLib.getContent();
+    const content = portalLib.getContent() || {};
 
     const xpSiteUrl = portalLib.pageUrl({
         path: site._path,
@@ -125,7 +125,7 @@ export const parseFrontendRequestPath = (req) => {
     // Compare: do the request and the current content agree on what's the relative path?
     // If yes, it's a content item path: pass it directly to the frontend.
     // If no, it's either a non-existing content (return a 404), or it's <domain>/<siteUrl>/<proxyMatchPattern>/<frontendRequestPath>. Use nonContentPath to determine <frontendRequestPath> and pass that to the frontend.
-    const siteRelativeContentPath = getSiteRelativeContentPath(content, site._path);
+    const siteRelativeContentPath = getSiteRelativeContentPath(content._path, site._path);
     const siteRelativeReqPath = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
 
     const isContentItem = siteRelativeContentPath === siteRelativeReqPath;
