@@ -1,18 +1,15 @@
 const httpClientLib = require('/lib/http-client');
 
-const { MAPPING_TO_THIS_PROXY, FROM_XP_PARAM } = require('./connection-config');
-const { getBodyWithReplacedUrls, getPageContributionsWithBaseUrl } = require("./postprocessing");
-const { relayUriParams, parseFrontendRequestPath } = require("./parsing");
+const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, XP_RENDER_MODE_HEADER, XP_RENDER_MODE} = require('./connection-config');
+const {getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
 
-
-
-
-const errorResponse = function(url, status, message, req) {
+const errorResponse = function (url, status, message, req) {
     if (status >= 400) {
         const msg = url
-            ? `Not fetched from frontend (${url}): ${status} - ${message}`
-            : `Proxy (${req.url}) responded: ${status} - ${message}`;
+                    ? `Not fetched from frontend (${url}): ${status} - ${message}`
+                    : `Proxy (${req.url}) responded: ${status} - ${message}`;
         log.error(msg);
     }
 
@@ -24,16 +21,15 @@ const errorResponse = function(url, status, message, req) {
 };
 
 
-
 // This proxies both requests made to XP content item paths and to frontend-relative paths (below the proxy "mapping" MAPPING_TO_THIS_PROXY),
 // and uses httpClientLib to make the same request from the frontend, whether its rendered HTML or frontend assets.
-const proxy = function(req) {
+const proxy = function (req) {
 
     if (req.branch !== 'draft') {
         return errorResponse(null, 400, 'Frontend proxy only available at the draft branch.', req);
     }
 
-    const { frontendRequestPath, xpSiteUrl, error } = parseFrontendRequestPath(req);
+    const {frontendRequestPath, xpSiteUrl, error} = parseFrontendRequestPath(req);
     if (error) {
         return {
             status: error
@@ -54,18 +50,17 @@ const proxy = function(req) {
     */
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
+    log.info(`Lib-frontend-proxy:\nUrl: ${frontendUrl}\nMode: ${req.mode}\n`);
 
     try {
         const response = httpClientLib.request({
             url: frontendUrl,
             // contentType: 'text/html',
             connectionTimeout: 5000,
-
             headers: {
-                //secret: "it's not a secret anymore!"
-                [FROM_XP_PARAM]: "preview"
+                [FROM_XP_PARAM]: "preview",
+                [XP_RENDER_MODE_HEADER]: req.mode,
             },
-
             body: null, // JSON.stringify({ variables: {} }),
             followRedirects: req.mode !== 'edit',
         });
@@ -87,15 +82,18 @@ const proxy = function(req) {
             return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view');
         }
 
-        const isOk =  response.status === 200;
+        const isOk = response.status === 200;
         const isHtml = isOk && response.contentType.indexOf('html') !== -1;
         const isJs = isOk && response.contentType.indexOf('javascript') !== -1;
 
+        //TODO: workaround for XP pattern controller mapping not picked up in edit mode
+        const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
+
         if (isHtml || isJs) {
-            response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrl}${MAPPING_TO_THIS_PROXY}/`);
+            response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
         }
         if (isHtml) {
-            response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrl);
+            response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
         }
         if (!isHtml) {
             response.postProcess = false
