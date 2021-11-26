@@ -111,7 +111,7 @@ const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
 export const parseFrontendRequestPath = (req) => {
 
     const site = portalLib.getSite();
-    const content = portalLib.getContent();
+    const content = portalLib.getContent() || {};
 
     const xpSiteUrl = portalLib.pageUrl({
         path: site._path,
