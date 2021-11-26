@@ -16,3 +16,13 @@ exports.MAPPING_TO_THIS_PROXY = '__frontendproxy__';
 exports.PROXY_MATCH_PATTERN = new RegExp(`^/?${exports.MAPPING_TO_THIS_PROXY}(/.*)?$`);
 
 exports.FROM_XP_PARAM = '__fromxp__';
+
+exports.XP_RENDER_MODE_HEADER = 'Content-Studio-Mode';
+
+exports.XP_RENDER_MODE = {
+    INLINE: "inline",
+    EDIT: "edit",
+    PREVIEW: "preview",
+    LIVE: "live",
+    ADMIN: "admin",
+}
