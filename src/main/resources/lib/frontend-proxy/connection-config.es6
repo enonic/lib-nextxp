@@ -15,8 +15,14 @@ exports.MAPPING_TO_THIS_PROXY = '__frontendproxy__';
 // Detects if this proxy is used as a non-content-item proxy (and instead points to frontend assets etc), and matches any following path to regex group 1.
 exports.PROXY_MATCH_PATTERN = new RegExp(`^/?${exports.MAPPING_TO_THIS_PROXY}(/.*)?$`);
 
+// Header keys for communicating with frontend server
 exports.FROM_XP_PARAM = '__fromxp__';
-
+exports.FROM_XP_PARAM_VALUES = {
+    TYPE: "type",
+    PAGE: "page",
+    COMPONENT: "component",
+};
+exports.COMPONENT_SUBPATH_HEADER = "Xp-Component-Path";
 exports.XP_RENDER_MODE_HEADER = 'Content-Studio-Mode';
 
 exports.XP_RENDER_MODE = {

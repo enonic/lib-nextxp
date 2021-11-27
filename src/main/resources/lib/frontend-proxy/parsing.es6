@@ -44,6 +44,8 @@ const getSiteRelativeContentPath = (contentPath = "", sitePath) => {
  */
 const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeContentPath) => {
     let siteRelativeReqPath = null;
+    let componentSubPath = undefined;
+
     if (!req.path.startsWith(xpSiteUrl)) {
         if (req.path.replace(/\/*$/, '/') === xpSiteUrl) {
             // On root site content item, detects slash deviation and just returns the root slash
@@ -54,6 +56,10 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
             const editRootUrl = xpSiteUrl.replace(new RegExp(`${site._name}/$`), '');
             if (req.path === `${editRootUrl}${content._id}`) {
                 siteRelativeReqPath = siteRelativeContentPath;
+
+            } else if (req.path.startsWith(`${editRootUrl}${content._id}/_/component/`)) {
+                siteRelativeReqPath = siteRelativeContentPath;
+                componentSubPath = req.path.substring(`${editRootUrl}${content._id}/_/component`.length);
 
             } else {
                 throw Error("req.path " + JSON.stringify(req.path) + " not recognized with _path or _id.");
@@ -70,7 +76,7 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
             .replace(/^\/*/, '/');
     }
 
-    return siteRelativeReqPath;
+    return { siteRelativeReqPath, componentSubPath };
 }
 
 
@@ -126,7 +132,7 @@ export const parseFrontendRequestPath = (req) => {
     // If yes, it's a content item path: pass it directly to the frontend.
     // If no, it's either a non-existing content (return a 404), or it's <domain>/<siteUrl>/<proxyMatchPattern>/<frontendRequestPath>. Use nonContentPath to determine <frontendRequestPath> and pass that to the frontend.
     const siteRelativeContentPath = getSiteRelativeContentPath(content._path, site._path);
-    const siteRelativeReqPath = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
+    const { siteRelativeReqPath, componentSubPath } = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
 
     const isContentItem = siteRelativeContentPath === siteRelativeReqPath;
 
@@ -142,7 +148,8 @@ export const parseFrontendRequestPath = (req) => {
 
     return {
         frontendRequestPath,
-        xpSiteUrl
+        xpSiteUrl,
+        componentSubPath
     }
 }
 
