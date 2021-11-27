@@ -1,6 +1,6 @@
 const httpClientLib = require('/lib/http-client');
 
-const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, XP_RENDER_MODE_HEADER, XP_RENDER_MODE} = require('./connection-config');
+const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require('./connection-config');
 const {getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
@@ -29,7 +29,10 @@ const proxy = function (req) {
         return errorResponse(null, 400, 'Frontend proxy only available at the draft branch.', req);
     }
 
-    const {frontendRequestPath, xpSiteUrl, error} = parseFrontendRequestPath(req);
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
+
+                                                                                                                        if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
+
     if (error) {
         return {
             status: error
@@ -50,17 +53,28 @@ const proxy = function (req) {
     */
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
-    log.info(`Lib-frontend-proxy:\nUrl: ${frontendUrl}\nMode: ${req.mode}\n`);
 
     try {
+        const headers = {
+            [FROM_XP_PARAM]: req.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE,
+            [XP_RENDER_MODE_HEADER]: req.mode,
+        };
+        if (componentSubPath) {
+            headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
+
+            // If a component path has been parsed from the URL, it's most likely a single-component render request during update in edit mode.
+            // Set the header to 'component' to signify that, except if it's the page at the root of the component tree.
+            if (componentSubPath !== '' && componentSubPath !== '/') {
+                headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.COMPONENT;
+            }
+        }
+                                                                                                                        log.info(`\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
+
         const response = httpClientLib.request({
             url: frontendUrl,
             // contentType: 'text/html',
             connectionTimeout: 5000,
-            headers: {
-                [FROM_XP_PARAM]: req.headers[FROM_XP_PARAM] || "type",
-                [XP_RENDER_MODE_HEADER]: req.mode,
-            },
+            headers,
             body: null, // JSON.stringify({ variables: {} }),
             followRedirects: req.mode !== 'edit',
         });
@@ -73,7 +87,7 @@ const proxy = function (req) {
         const message = response.message;
 
         if (status >= 400) {
-            log.info(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
+            log.warn(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
         }
 
         // Do not send redirect-responses to the content-studio editor view,
