@@ -77,7 +77,7 @@ const proxy = function (req) {
                 renderSingleComponent = true;
             }
         }
-                                                                                                                        log.info(`\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
+                                                                                                                        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
 
         const response = httpClientLib.request({
             url: frontendUrl,
@@ -117,7 +117,7 @@ const proxy = function (req) {
                 ? getSingleComponentHtml(response.body)
                 : getContentStudioAdaptedBodyTag(response.body, req.mode)
 
-                                                                                                                        log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
+                                                                                                                        //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
         }
         if (isHtml || isJs) {
             response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
