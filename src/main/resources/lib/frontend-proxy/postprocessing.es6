@@ -26,31 +26,26 @@ export const getPageContributionsWithBaseUrl = (response, siteUrl) => {
         headBegin: [
             ...(
                 (typeof pageContributions.headBegin === 'string')
-                    ?  [pageContributions.headBegin]
-                    :  pageContributions.headBegin || []
+                ? [pageContributions.headBegin]
+                : pageContributions.headBegin || []
             ).map(item => item.replace(/<base\s+.*?(\/>|\/base>)/g, '')),
             `<base href="${siteUrl}" />`
         ]
     };
 }
 
-// <body> replaced with <body data-portal-component-type="page">, or <body class="edit" data-portal-component-type="page">
-// (since Next.js doesn't offer a good way to do this dynamically).
-// FIXME: This is WAY too vulnerable.
-const bodyTagPattern = /<body(.*?)>/i;
-export const getContentStudioAdaptedBodyTag = (body, requestRenderMode) => (
-    body.replace(bodyTagPattern, `<body$1 ${requestRenderMode === "edit" ? 'class="edit" ':''}data-portal-component-type="page">`)
-);
-
 // In cases of URLs like `.../_/component/...`, where we ONLY want to render the naked component, everything before and after the component must be stripped away
 // (since Next.js doesn't offer a good way to do this dynamically).
-// Next.js marks this by surrounding the single component with <details data-remove-above="true"></details> and <details data-remove-below="true"></details>
-const htmlBeginningPattern = /.*?<details data-remove-above="true"><\/details>\s*/i;
-const htmlEndPattern = /\s*<details data-remove-below="true"><\/details>.*/i;
-export const getSingleComponentHtml = (body) => (
-    body
-        .replace(htmlBeginningPattern, '')
-        .replace(htmlEndPattern, '')
-)
+// Next.js marks this by surrounding the single component with <details data-single-component-output="true"></details>
+
+const htmlComponentOutputPattern = /<details data-single-component-output="true">((?:\n|\t|\r|.)*)<\/details>/im;
+export const getSingleComponentHtml = (body) => {
+    const matches = body.match(htmlComponentOutputPattern);
+    if (matches?.length > 1) {
+        return matches[1];  // 0 -- whole match, but we need the first match group
+    } else {
+        return body;
+    }
+}
 
 
