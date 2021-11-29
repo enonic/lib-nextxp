@@ -114,8 +114,8 @@ const proxy = function (req) {
 
         if (isHtml) {
             response.body = renderSingleComponent
-                ? getSingleComponentHtml(response.body)
-                : getContentStudioAdaptedBodyTag(response.body, req.mode)
+                            ? getSingleComponentHtml(response.body)
+                            : response.body;
 
                                                                                                                         //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
         }
