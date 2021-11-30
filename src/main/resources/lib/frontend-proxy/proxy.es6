@@ -1,11 +1,11 @@
 const httpClientLib = require('/lib/http-client');
 
-const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, XP_RENDER_MODE_HEADER, XP_RENDER_MODE} = require('./connection-config');
-const {getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require('./connection-config');
+const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
 
-const errorResponse = function (url, status, message, req) {
+const errorResponse = function (url, status, message, req, renderSingleComponent) {
     if (status >= 400) {
         const msg = url
                     ? `Not fetched from frontend (${url}): ${status} - ${message}`
@@ -13,11 +13,17 @@ const errorResponse = function (url, status, message, req) {
         log.error(msg);
     }
 
-    return {
-        contentType: 'text/plain',
-        body: message,
-        status,
-    };
+    return renderSingleComponent
+        ? {
+            contentType: 'text/html',
+            body: `<div style="color:red;border: 1px solid red; background-color:white"><p>lib-frontend-proxy</p><h3>Component rendering error</h3><p>Status: ${status}</p><p>Message: ${message}</p></div>`,
+            status: 200
+        }
+        : {
+            contentType: 'text/plain',
+            body: message,
+            status,
+        };
 };
 
 
@@ -29,7 +35,10 @@ const proxy = function (req) {
         return errorResponse(null, 400, 'Frontend proxy only available at the draft branch.', req);
     }
 
-    const {frontendRequestPath, xpSiteUrl, error} = parseFrontendRequestPath(req);
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
+
+                                                                                                                        //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
+
     if (error) {
         return {
             status: error
@@ -52,34 +61,49 @@ const proxy = function (req) {
     const frontendUrl = relayUriParams(req, frontendRequestPath);
     log.info(`Lib-frontend-proxy:\nUrl: ${frontendUrl}\nMode: ${req.mode}\n`);
 
+    let renderSingleComponent = false;
+
     try {
+        const headers = {
+            [FROM_XP_PARAM]: req.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE,
+            [XP_RENDER_MODE_HEADER]: req.mode,
+        };
+        if (componentSubPath) {
+            headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
+
+            // If a component path has been parsed from the URL, it's most likely a single-component render request during update in edit mode.
+            // Set the header to 'component' to signify that, except if it's the page at the root of the component tree.
+            if (componentSubPath !== '' && componentSubPath !== '/') {
+                headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.COMPONENT;
+                renderSingleComponent = true;
+            }
+        }
+                                                                                                                        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
+
         const response = httpClientLib.request({
             url: frontendUrl,
             // contentType: 'text/html',
             connectionTimeout: 5000,
-            headers: {
-                [FROM_XP_PARAM]: "preview",
-                [XP_RENDER_MODE_HEADER]: req.mode,
-            },
+            headers,
             body: null, // JSON.stringify({ variables: {} }),
             followRedirects: req.mode !== 'edit',
         });
 
         if (!response) {
-            return errorResponse(frontendUrl, 500, 'No response from HTTP client');
+            return errorResponse(frontendUrl, 500, 'No response from HTTP client', undefined, renderSingleComponent);
         }
 
         const status = response.status;
         const message = response.message;
 
         if (status >= 400) {
-            log.info(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
+            log.warning(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
         }
 
         // Do not send redirect-responses to the content-studio editor view,
         // as it may cause iframe cross-origin errors
         if (req.mode === 'edit' && status >= 300 && status < 400) {
-            return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view');
+            return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view', undefined, renderSingleComponent);
         }
 
         const isOk = response.status === 200;
@@ -89,6 +113,13 @@ const proxy = function (req) {
         //TODO: workaround for XP pattern controller mapping not picked up in edit mode
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
 
+        if (isHtml) {
+            response.body = renderSingleComponent
+                            ? getSingleComponentHtml(response.body)
+                            : response.body;
+
+                                                                                                                        //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
+        }
         if (isHtml || isJs) {
             response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
         }
@@ -99,11 +130,13 @@ const proxy = function (req) {
             response.postProcess = false
         }
 
-        return response;
+        return (!isOk && renderSingleComponent)
+        ? errorResponse(frontendUrl, response.status, response.message, undefined,true)
+        : response;
 
     } catch (e) {
         log.error(e);
-        return errorResponse(frontendUrl, 500, `Exception: ${e}`);
+        return errorResponse(frontendUrl, 500, `Exception: ${e}`, undefined, renderSingleComponent);
     }
 };
 
