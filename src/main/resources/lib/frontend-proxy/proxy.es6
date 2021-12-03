@@ -1,7 +1,7 @@
 const httpClientLib = require('/lib/http-client');
 
 const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require('./connection-config');
-const {getContentStudioAdaptedBodyTag, getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
 
@@ -37,7 +37,7 @@ const proxy = function (req) {
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
 
-                                                                                                                        if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
+                                                                                                                        //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
 
     if (error) {
         return {
@@ -59,6 +59,7 @@ const proxy = function (req) {
     */
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
+    log.info(`Lib-frontend-proxy:\nUrl: ${frontendUrl}\nMode: ${req.mode}\n`);
 
     let renderSingleComponent = false;
 
