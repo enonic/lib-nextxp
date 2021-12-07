@@ -1,7 +1,12 @@
 const httpClientLib = require('/lib/http-client');
 
-const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require('./connection-config');
-const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require(
+    './connection-config');
+const {
+    extractSingleComponentHtmlIfNeeded,
+    getBodyWithReplacedUrls,
+    getPageContributionsWithBaseUrl
+} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
 
@@ -14,12 +19,12 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 
     return renderSingleComponent
-        ? {
+           ? {
             contentType: 'text/html',
             body: `<div style="color:red;border: 1px solid red; background-color:white"><p>lib-frontend-proxy</p><h3>Component rendering error</h3><p>Status: ${status}</p><p>Message: ${message}</p></div>`,
             status: 200
         }
-        : {
+           : {
             contentType: 'text/plain',
             body: message,
             status,
@@ -37,7 +42,7 @@ const proxy = function (req) {
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
 
-                                                                                                                        //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
+    //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
 
     if (error) {
         return {
@@ -78,7 +83,7 @@ const proxy = function (req) {
                 renderSingleComponent = true;
             }
         }
-                                                                                                                        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
+        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
 
         const response = httpClientLib.request({
             url: frontendUrl,
@@ -114,11 +119,9 @@ const proxy = function (req) {
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
 
         if (isHtml) {
-            response.body = renderSingleComponent
-                            ? getSingleComponentHtml(response.body)
-                            : response.body;
+            response.body = extractSingleComponentHtmlIfNeeded(response.body);
 
-                                                                                                                        //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
+            //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
         }
         if (isHtml || isJs) {
             response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
@@ -131,8 +134,8 @@ const proxy = function (req) {
         }
 
         return (!isOk && renderSingleComponent)
-        ? errorResponse(frontendUrl, response.status, response.message, undefined,true)
-        : response;
+               ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
+               : response;
 
     } catch (e) {
         log.error(e);

@@ -39,7 +39,7 @@ export const getPageContributionsWithBaseUrl = (response, siteUrl) => {
 // Next.js marks this by surrounding the single component with <details data-single-component-output="true"></details>
 
 const htmlComponentOutputPattern = /<details data-single-component-output="true">((?:\n|\t|\r|.)*)<\/details>/im;
-export const getSingleComponentHtml = (body) => {
+export const extractSingleComponentHtmlIfNeeded = (body) => {
     const matches = body.match(htmlComponentOutputPattern);
     if (matches?.length > 1) {
         return matches[1];  // 0 -- whole match, but we need the first match group
