@@ -96,7 +96,8 @@ const proxy = function (req) {
         const status = response.status;
         const message = response.message;
 
-        if (status >= 400) {
+        // 501 code returned when next is unable to render
+        if (status >= 400 && status !== 501) {
             log.warning(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
         }
 
@@ -106,7 +107,7 @@ const proxy = function (req) {
             return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view', undefined, renderSingleComponent);
         }
 
-        const isOk = response.status === 200;
+        const isOk = response.status === 200 || 501;
         const isHtml = isOk && response.contentType.indexOf('html') !== -1;
         const isJs = isOk && response.contentType.indexOf('javascript') !== -1;
 
