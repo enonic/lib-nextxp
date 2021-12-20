@@ -143,3 +143,10 @@ const proxy = function (req) {
 exports.get = proxy
 
 exports.handleError = proxy;
+
+exports.getPage = function(req) {
+    req.headers = req.headers || {};
+    req.headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.PAGE;
+
+    return proxy(req);
+}
