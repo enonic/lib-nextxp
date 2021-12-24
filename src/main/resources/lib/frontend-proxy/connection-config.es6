@@ -1,11 +1,10 @@
-const portalLib = require('/lib/xp/portal');
-
 const removeEndSlashPattern = /\/+$/;
 
 /** Return the value frontendServerUrl as configured in host app's site.xml, or fall back to default value "http://localhost:3000" */
 exports.getFrontendServerUrl = () => {
-    const frontendServerUrl = (portalLib.getSiteConfig().frontendServerUrl) || "http://localhost:3000";
-    return frontendServerUrl.replace(removeEndSlashPattern, '');
+    const config = app?.config || {};
+    const url = config.nextjsUrl || "http://localhost:3000"
+    return url.replace(removeEndSlashPattern, '');
 }
 
 
