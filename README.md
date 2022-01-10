@@ -61,7 +61,7 @@ Redeploy, open Content Studio, edit the site item, and on the app where you see 
 
 ## Overview
 
-The lib adds a proxy controller (_/lib/frontend-proxy/proxy.js_) that requires
+The lib adds a proxy controller (_/lib/nextjs-proxy/proxy.js_) that requires
 a [controller mapping](https://developer.enonic.com/docs/xp/stable/cms/mappings) in the host app's _site.xml_ (see "installation" above).
 Set the proxy up so it matches on existing content items of selected type on path `<sitePath>/X/Y/Z` - so, usually <match>type. The proxy
 sends requests to `<frontendUrl>/X/Y/Z`, and handles any errors or returns the response so that is rendered as a preview in content studio.
@@ -69,10 +69,9 @@ sends requests to `<frontendUrl>/X/Y/Z`, and handles any errors or returns the r
 HTML- and JS- responses from the frontend server will be postprocessed in order for asset URLs etc that target the frontend server will
 still work in CS preview. This happens by detecting frontend-server URLs (which consequently should always be absolute URLs - the frontend
 rendering must take care of that) and inserting a string value `"__nextjsproxy__"` (`MAPPING_TO_THIS_PROXY` in connection-config.js - see
-also [issues](#issues) below), below XP's `<siteUrl>`. eg. `<frontendUrl>/asset/path` --> `<siteUrl>/__frontendproxy__/asset/path`.
+also [issues](#issues) below), below XP's `<siteUrl>`. eg. `<frontendUrl>/asset/path` --> `<siteUrl>/__nextjsproxy__/asset/path`.
 
-For that reason, all links to other XP content items that should behave as in-CS-preview links, should be served from the frontend server _
-not_ as absolute URLs, but site-relative paths that _don't_ start with a slash.
+For that reason, all links to other XP content items that should behave as in-CS-preview links, should be served from the frontend server _not_ as absolute URLs, but site-relative paths that _don't_ start with a slash.
 
 <a id="behavior404"></a>
 ### 404 behavior:
