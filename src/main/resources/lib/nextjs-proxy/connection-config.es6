@@ -17,6 +17,8 @@ exports.PROXY_MATCH_PATTERN = new RegExp(`^/?${exports.MAPPING_TO_THIS_PROXY}(/.
 // Header keys for communicating with frontend server
 exports.FROM_XP_PARAM = '__fromxp__';
 
+exports.CAN_NOT_RENDER_CODE = 418;
+
 // TODO: These values must match XP_COMPONENT_TYPE TS-enum on the Next.js side
 exports.FROM_XP_PARAM_VALUES = {
     TYPE: "type",

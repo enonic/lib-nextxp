@@ -1,6 +1,13 @@
 const httpClientLib = require('/lib/http-client');
 
-const {MAPPING_TO_THIS_PROXY, FROM_XP_PARAM, FROM_XP_PARAM_VALUES, XP_RENDER_MODE_HEADER, COMPONENT_SUBPATH_HEADER} = require('./connection-config');
+const {
+    MAPPING_TO_THIS_PROXY,
+    FROM_XP_PARAM,
+    FROM_XP_PARAM_VALUES,
+    XP_RENDER_MODE_HEADER,
+    COMPONENT_SUBPATH_HEADER,
+    CAN_NOT_RENDER_CODE
+} = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
@@ -14,12 +21,12 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 
     return renderSingleComponent
-        ? {
+           ? {
             contentType: 'text/html',
             body: `<div style="color:red;border: 1px solid red; background-color:white"><p>lib-frontend-proxy</p><h3>Component rendering error</h3><p>Status: ${status}</p><p>Message: ${message}</p></div>`,
             status: 200
         }
-        : {
+           : {
             contentType: 'text/plain',
             body: message,
             status,
@@ -37,7 +44,7 @@ const proxy = function (req) {
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
 
-                                                                                                                        //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
+    //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
 
     if (error) {
         return {
@@ -59,7 +66,7 @@ const proxy = function (req) {
     */
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
-    log.info(`Lib-frontend-proxy:\nUrl: ${frontendUrl}\nMode: ${req.mode}\n`);
+    log.info(`---> REQUEST:\n\nUrl: ${frontendUrl}\nMode: ${req.mode}\n\n`);
 
     let renderSingleComponent = false;
 
@@ -78,7 +85,7 @@ const proxy = function (req) {
                 renderSingleComponent = true;
             }
         }
-                                                                                                                        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
+        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
 
         const response = httpClientLib.request({
             url: frontendUrl,
@@ -96,8 +103,7 @@ const proxy = function (req) {
         const status = response.status;
         const message = response.message;
 
-        // 501 code returned when next is unable to render
-        if (status >= 400 && status !== 501) {
+        if (status >= 400 && status !== CAN_NOT_RENDER_CODE) {
             log.warning(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
         }
 
@@ -107,33 +113,42 @@ const proxy = function (req) {
             return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view', undefined, renderSingleComponent);
         }
 
-        const isOk = response.status === 200 || 501;
-        const isHtml = isOk && response.contentType.indexOf('html') !== -1;
-        const isJs = isOk && response.contentType.indexOf('javascript') !== -1;
+        const isOk = response.status === 200;
+        const isCanNotRender = response.status === CAN_NOT_RENDER_CODE;
 
-        //TODO: workaround for XP pattern controller mapping not picked up in edit mode
-        const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
+        if (isOk) {
+            const isHtml = response.contentType.indexOf('html') !== -1;
+            const isJs = response.contentType.indexOf('javascript') !== -1;
 
-        if (isHtml) {
-            response.body = renderSingleComponent
-                            ? getSingleComponentHtml(response.body)
-                            : response.body;
+            //TODO: workaround for XP pattern controller mapping not picked up in edit mode
+            const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
 
-                                                                                                                        //log.info("<-- RESPONSE HTML:\n\n" + response.body + "\n");
+            if (isHtml) {
+                response.body = renderSingleComponent
+                                ? getSingleComponentHtml(response.body)
+                                : response.body;
+
+                response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
+
+            }
+            if (isHtml || isJs) {
+                response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
+            }
+            if (!isHtml) {
+                response.postProcess = false
+            }
+
+        } else if (isCanNotRender) {
+            response.body = null;
+            response.postProcess = false;
         }
-        if (isHtml || isJs) {
-            response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
-        }
-        if (isHtml) {
-            response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
-        }
-        if (!isHtml) {
-            response.postProcess = false
-        }
+
+        log.info("<--- RESPONSE\n\nstatus: " + response.status + "\ncontentType:" + response.contentType + "\nrenderSingleComponent:" +
+                 renderSingleComponent + "\n");
 
         return (!isOk && renderSingleComponent)
-        ? errorResponse(frontendUrl, response.status, response.message, undefined,true)
-        : response;
+               ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
+               : response;
 
     } catch (e) {
         log.error(e);
@@ -145,7 +160,7 @@ exports.get = proxy
 
 exports.handleError = proxy;
 
-exports.getPage = function(req) {
+exports.getPage = function (req) {
     req.headers = req.headers || {};
     req.headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.PAGE;
 
