@@ -1,14 +1,13 @@
 const httpClientLib = require('/lib/http-client');
 
 const {
-    MAPPING_TO_THIS_PROXY,
     FROM_XP_PARAM,
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
     COMPONENT_SUBPATH_HEADER,
     CAN_NOT_RENDER_CODE
 } = require('./connection-config');
-const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {getSingleComponentHtml, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
 
@@ -118,7 +117,6 @@ const proxy = function (req) {
 
         if (isOk) {
             const isHtml = response.contentType.indexOf('html') !== -1;
-            const isJs = response.contentType.indexOf('javascript') !== -1;
 
             //TODO: workaround for XP pattern controller mapping not picked up in edit mode
             const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
@@ -130,11 +128,7 @@ const proxy = function (req) {
 
                 response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
 
-            }
-            if (isHtml || isJs) {
-                response.body = getBodyWithReplacedUrls(req, response.body, `${xpSiteUrlWithoutEditMode}${MAPPING_TO_THIS_PROXY}/`);
-            }
-            if (!isHtml) {
+            } else {
                 response.postProcess = false
             }
 

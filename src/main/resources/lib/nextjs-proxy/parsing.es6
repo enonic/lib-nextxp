@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import { getFrontendServerUrl, PROXY_MATCH_PATTERN } from "./connection-config";
+import { getFrontendServerUrl } from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -136,15 +136,7 @@ export const parseFrontendRequestPath = (req) => {
 
     const isContentItem = siteRelativeContentPath === siteRelativeReqPath;
 
-    const nonContentPath = siteRelativeReqPath.match(PROXY_MATCH_PATTERN)
-
-    if (!isContentItem && !nonContentPath) {
-        return {
-            error: 404
-        };
-    }
-
-    const frontendRequestPath = getFrontendRequestPath(isContentItem, nonContentPath, content._path);
+    const frontendRequestPath = getFrontendRequestPath(isContentItem, siteRelativeReqPath, content._path);
 
     return {
         frontendRequestPath,
