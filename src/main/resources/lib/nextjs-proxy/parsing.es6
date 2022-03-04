@@ -85,13 +85,10 @@ const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
     if (isContentItem) {
         const contentPathArr = contentPath.split('/');
         return contentPathArr
-            .slice( (!contentPathArr[0])
-                ? 2
-                : 1
-            )
+            .slice( (!contentPathArr[0]) ? 2 : 1 )
             .join("/");
     } else {
-        return nonContentPath[1] || '';
+        return nonContentPath || '';
     }
 }
 
