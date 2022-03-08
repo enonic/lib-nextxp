@@ -73,6 +73,7 @@ const proxy = function (req) {
         const headers = {
             [FROM_XP_PARAM]: req.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE,
             [XP_RENDER_MODE_HEADER]: req.mode,
+            xpBaseUrl: xpSiteUrl
         };
         if (componentSubPath) {
             headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
