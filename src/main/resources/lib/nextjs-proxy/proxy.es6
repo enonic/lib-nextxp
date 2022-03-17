@@ -143,8 +143,8 @@ const proxy = function (req) {
             response.postProcess = false;
         }
 
-        log.info("<--- RESPONSE\n\nstatus: " + response.status + "\ncontentType:" + response.contentType + "\nrenderSingleComponent:" +
-                 renderSingleComponent + "\n");
+        log.info("<--- RESPONSE\n\nUrl: " + frontendUrl + "\nstatus: " + response.status + "\ncontentType:" + response.contentType +
+                 "\nrenderSingleComponent:" + renderSingleComponent + "\n");
 
         return (!isOk && renderSingleComponent)
                ? errorResponse(frontendUrl, response.status, response.message, undefined, true)

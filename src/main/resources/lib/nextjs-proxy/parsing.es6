@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import { getFrontendServerUrl } from "./connection-config";
+import {getFrontendServerUrl} from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -23,7 +23,6 @@ const getSiteRelativeContentPath = (contentPath = "", sitePath) => {
         .replace(/\/*$/, '')
         .replace(/^\/*/, '/');
 }
-
 
 
 /**
@@ -76,22 +75,20 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
             .replace(/^\/*/, '/');
     }
 
-    return { siteRelativeReqPath, componentSubPath };
+    return {siteRelativeReqPath, componentSubPath};
 }
-
 
 
 const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
     if (isContentItem) {
         const contentPathArr = contentPath.split('/');
         return contentPathArr
-            .slice( (!contentPathArr[0]) ? 2 : 1 )
+            .slice((!contentPathArr[0]) ? 2 : 1)
             .join("/");
     } else {
         return nonContentPath || '';
     }
 }
-
 
 
 /** Uses request, site and content data to determine the frontendserver-relative path to pass on through the proxy: whatever path to a page (xp-content or not), frontend asset etc., that the proxy should request.
@@ -129,7 +126,7 @@ export const parseFrontendRequestPath = (req) => {
     // If yes, it's a content item path: pass it directly to the frontend.
     // If no, it's either a non-existing content (return a 404), or it's <domain>/<siteUrl>/<proxyMatchPattern>/<frontendRequestPath>. Use nonContentPath to determine <frontendRequestPath> and pass that to the frontend.
     const siteRelativeContentPath = getSiteRelativeContentPath(content._path, site._path);
-    const { siteRelativeReqPath, componentSubPath } = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
+    const {siteRelativeReqPath, componentSubPath} = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
 
     const isContentItem = siteRelativeContentPath === siteRelativeReqPath;
 
@@ -143,8 +140,6 @@ export const parseFrontendRequestPath = (req) => {
 }
 
 
-
-
 export const relayUriParams = (req, frontendRequestPath) => {
     const frontendServerUrl = getFrontendServerUrl();
 
@@ -153,8 +148,8 @@ export const relayUriParams = (req, frontendRequestPath) => {
         return `${frontendServerUrl}/${frontendRequestPath}`.replace(/\/+/g, '/');
     }
     const paramsString = Object.keys(params)
-        .map( key => `${key}=${params[key]}`)
-        .join( '&');
+        .map(key => `${key}=${params[key]}`)
+        .join('&');
 
     return `${frontendServerUrl}/${frontendRequestPath}?${paramsString}`.replace(/\/+/g, '/');
 }

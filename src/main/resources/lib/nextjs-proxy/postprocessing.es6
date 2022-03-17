@@ -1,22 +1,12 @@
-const {getFrontendServerUrl} = require("./connection-config")
-
-
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
 export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash) => {
 
-    const frontendServerUrl = getFrontendServerUrl();
-    const nativeApiPattern = new RegExp(`(['"\`])(${frontendServerUrl}/)(_next(?!/image\?)/|api/)`, "g");
-    const extRootPattern = new RegExp(`${frontendServerUrl}/?`, "g");
-
-    const extFrontendProxyRoot = `$1${proxyUrlWithSlash}$3`;
+    const nativeApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
 
     return body
         // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc):
-        .replace(nativeApiPattern, extFrontendProxyRoot)
-        .replace(extRootPattern, proxyUrlWithSlash)
+        .replace(nativeApiPattern, `$1${proxyUrlWithSlash}$3$1`)
 }
-
-
 
 
 export const getPageContributionsWithBaseUrl = (response, siteUrl) => {
