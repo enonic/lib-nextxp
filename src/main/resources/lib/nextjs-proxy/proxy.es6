@@ -88,6 +88,7 @@ const proxy = function (req) {
         //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
 
         const response = httpClientLib.request({
+            method: req.method,
             url: frontendUrl,
             // contentType: 'text/html',
             connectionTimeout: 5000,
