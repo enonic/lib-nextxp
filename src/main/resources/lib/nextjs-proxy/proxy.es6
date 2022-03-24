@@ -5,7 +5,6 @@ const {
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
     COMPONENT_SUBPATH_HEADER,
-    CAN_NOT_RENDER_CODE
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
@@ -43,26 +42,11 @@ const proxy = function (req) {
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
 
-    //if (componentSubPath !== undefined) log.info("componentSubPath: " + componentSubPath);
-
     if (error) {
         return {
             status: error
         };
     }
-
-    /*
-    const { FROM_XP_PARAM } = require('./connection-config');
-    const isLoopback = req.params[FROM_XP_PARAM];
-    if (isLoopback) {
-        log.info(`Loopback to XP detected from path ${req.rawPath}`);
-        return {
-            contentType: 'text/html',
-            body: `<div>Error: request to frontend looped back to XP</div>`,
-            status: 200,
-        };
-    }
-    */
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
     log.info(`---> REQUEST:\n\nUrl: ${frontendUrl}\nMode: ${req.mode}\n\n`);
@@ -97,52 +81,28 @@ const proxy = function (req) {
             followRedirects: req.mode !== 'edit',
         });
 
-        if (!response) {
-            return errorResponse(frontendUrl, 500, 'No response from HTTP client', undefined, renderSingleComponent);
-        }
-
-        const status = response.status;
-        const message = response.message;
-
-        if (status >= 400 && status !== CAN_NOT_RENDER_CODE) {
-            log.warning(`Error response from frontend for ${frontendUrl}: ${status} - ${message}`);
-        }
-
-        // Do not send redirect-responses to the content-studio editor view,
-        // as it may cause iframe cross-origin errors
-        if (req.mode === 'edit' && status >= 300 && status < 400) {
-            return errorResponse(frontendUrl, status, 'Redirects are not supported in editor view', undefined, renderSingleComponent);
-        }
-
         const isOk = response.status === 200;
-        const isCanNotRender = response.status === CAN_NOT_RENDER_CODE;
 
-        if (isOk) {
-            const isHtml = response.contentType.indexOf('html') !== -1;
-            const isJs = response.contentType.indexOf('javascript') !== -1;
+        const isHtml = response.contentType.indexOf('html') !== -1;
+        const isJs = response.contentType.indexOf('javascript') !== -1;
 
-            //TODO: workaround for XP pattern controller mapping not picked up in edit mode
-            const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
+        //TODO: workaround for XP pattern controller mapping not picked up in edit mode
+        const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
 
-            if (isHtml) {
-                response.body = renderSingleComponent
-                                ? getSingleComponentHtml(response.body)
-                                : response.body;
+        if (isHtml) {
+            response.body = renderSingleComponent
+                            ? getSingleComponentHtml(response.body)
+                            : response.body;
 
-                response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
+            response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
 
-            }
-            if (isHtml || isJs) {
-                response.body = getBodyWithReplacedUrls(req, response.body, xpSiteUrlWithoutEditMode);
-            }
-            if (!isHtml) {
-                response.postProcess = false
-            }
-
-        } else if (isCanNotRender) {
-            response.body = null;
-            response.postProcess = false;
         }
+        if (isHtml || isJs) {
+            response.body = getBodyWithReplacedUrls(req, response.body, xpSiteUrlWithoutEditMode);
+        }
+
+        response.postProcess = isHtml
+
 
         log.info("<--- RESPONSE\n\nUrl: " + frontendUrl + "\nstatus: " + response.status + "\ncontentType:" + response.contentType +
                  "\nrenderSingleComponent:" + renderSingleComponent + "\n");
