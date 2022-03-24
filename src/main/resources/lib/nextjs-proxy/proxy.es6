@@ -40,6 +40,10 @@ const proxy = function (req) {
         return errorResponse(null, 400, 'Frontend proxy only available at the draft branch.', req);
     }
 
+    if (req.mode === 'live') {
+        return errorResponse(null, 400, 'Frontend proxy not available in live mode.', req);
+    }
+
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
 
     if (error) {

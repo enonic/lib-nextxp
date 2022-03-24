@@ -19,7 +19,7 @@ dependencies {
     // compile "com.enonic.xp:lib-node:${xpVersion}"
     // compile 'com.enonic.lib:lib-cache:2.1.1'
 
-    compile 'com.enonic.lib:lib-http-client:2.3.0'
+    compile 'com.enonic.lib:lib-http-client:2.4.1'
 
     // testCompile "com.enonic.xp:testing:${xpVersion}"
 }
