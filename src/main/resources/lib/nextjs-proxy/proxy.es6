@@ -41,7 +41,7 @@ const proxy = function (req) {
     }
 
     if (req.mode === 'live') {
-        return errorResponse(null, 400, 'Frontend proxy not available in live mode.', req);
+        return errorResponse(null, 403, 'Frontend proxy not available in live mode.', req);
     }
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
