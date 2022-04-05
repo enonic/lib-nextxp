@@ -18,17 +18,25 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
         log.error(msg);
     }
 
-    return renderSingleComponent
-           ? {
+    const componentErrorBody = `<div style="border: 2px solid red; padding: 16px;">
+                                    <h3 style="margin: 0;">Component error: ${status}</h3>
+                                    <p style="margin-bottom: 0; color: grey;">${message ? message : 'Unknown error'}</p>
+                                </div>`;
+
+    if (renderSingleComponent) {
+        // catch non-handled nextjs errors when fetching single component
+        return {
             contentType: 'text/html',
-            body: `<div style="color:red;border: 1px solid red; background-color:white"><p>lib-frontend-proxy</p><h3>Component rendering error</h3><p>Status: ${status}</p><p>Message: ${message}</p></div>`,
+            body: componentErrorBody,
             status: 200
         }
-           : {
+    } else {
+        return {
             contentType: 'text/plain',
             body: message,
             status,
         };
+    }
 };
 
 
