@@ -1,16 +1,15 @@
-const removeEndSlashPattern = /\/+$/;
+export const removeEndSlashesPattern = /\/+$/;
+export const removeStartSlashesPattern = /^\/+/;
 
 /** Return the value frontendServerUrl as configured in host app's site.xml, or fall back to default value "http://localhost:3000" */
 exports.getFrontendServerUrl = () => {
     const config = app?.config || {};
     const url = config.nextjsUrl || "http://localhost:3000"
-    return url.replace(removeEndSlashPattern, '');
+    return url.replace(removeEndSlashesPattern, '');
 }
 
 // Header keys for communicating with frontend server
 exports.FROM_XP_PARAM = '__fromxp__';
-
-exports.CAN_NOT_RENDER_CODE = 418;
 
 // TODO: These values must match XP_COMPONENT_TYPE TS-enum on the Next.js side
 exports.FROM_XP_PARAM_VALUES = {

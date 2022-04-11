@@ -1,7 +1,5 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerUrl} from "./connection-config";
-
 /**
  * Parses the site-relative path by CONTENT data:
  * current XP content path relative to the root site it appears to be below - naively based on the content._path string.
@@ -137,20 +135,5 @@ export const parseFrontendRequestPath = (req) => {
         xpSiteUrl,
         componentSubPath
     }
-}
-
-
-export const relayUriParams = (req, frontendRequestPath) => {
-    const frontendServerUrl = getFrontendServerUrl();
-
-    const params = req.params || {};
-    if (!params || Object.keys(params).length === 0) {
-        return `${frontendServerUrl}/${frontendRequestPath}`.replace(/\/+/g, '/');
-    }
-    const paramsString = Object.keys(params)
-        .map(key => `${key}=${params[key]}`)
-        .join('&');
-
-    return `${frontendServerUrl}/${frontendRequestPath}?${paramsString}`.replace(/\/+/g, '/');
 }
 

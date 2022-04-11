@@ -4,10 +4,10 @@ const {
     FROM_XP_PARAM,
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
-    COMPONENT_SUBPATH_HEADER,
+    COMPONENT_SUBPATH_HEADER, getFrontendServerUrl,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
-const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
+const {parseFrontendRequestPath} = require("./parsing");
 
 
 const errorResponse = function (url, status, message, req, renderSingleComponent) {
@@ -60,7 +60,7 @@ const proxy = function (req) {
         };
     }
 
-    const frontendUrl = relayUriParams(req, frontendRequestPath);
+    const frontendUrl = `${getFrontendServerUrl()}/${frontendRequestPath}`;
     log.info(`---> REQUEST:\n\nUrl: ${frontendUrl}\nMode: ${req.mode}\n\n`);
 
     let renderSingleComponent = false;
@@ -86,6 +86,7 @@ const proxy = function (req) {
         const response = httpClientLib.request({
             method: req.method,
             url: frontendUrl,
+            queryParams: req.params,
             // contentType: 'text/html',
             connectionTimeout: 5000,
             headers,
