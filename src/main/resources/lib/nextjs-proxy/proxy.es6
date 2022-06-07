@@ -97,6 +97,7 @@ const proxy = function (req) {
 
         const isHtml = response.contentType.indexOf('html') !== -1;
         const isJs = response.contentType.indexOf('javascript') !== -1;
+        const isCss = response.contentType.indexOf('stylesheet') !== -1;
 
         //TODO: workaround for XP pattern controller mapping not picked up in edit mode
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
@@ -109,7 +110,8 @@ const proxy = function (req) {
             response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
 
         }
-        if (isHtml || isJs) {
+
+        if (isHtml || isJs || isCss) {
             response.body = getBodyWithReplacedUrls(req, response.body, xpSiteUrlWithoutEditMode);
         }
 
