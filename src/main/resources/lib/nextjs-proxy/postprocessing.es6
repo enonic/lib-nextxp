@@ -1,11 +1,13 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
 export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash) => {
 
-    const nativeApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
+    const nextApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
+    const cssProxyPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*__proxy__\/)([^'"\` \n\r\t]*)['"\`]`, "g");
 
     return body
         // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc):
-        .replace(nativeApiPattern, `$1${proxyUrlWithSlash}$3$1`)
+        .replace(nextApiPattern, `$1${proxyUrlWithSlash}$3$1`)
+        .replace(cssProxyPattern, `$1${proxyUrlWithSlash}$3$1`);
 }
 
 
