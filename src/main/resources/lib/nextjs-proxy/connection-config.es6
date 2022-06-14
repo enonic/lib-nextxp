@@ -1,4 +1,5 @@
 const removeEndSlashPattern = /\/+$/;
+export const removeStartSlashPattern = /^\/+/;
 
 /** Return the value frontendServerUrl as configured in host app's site.xml, or fall back to default value "http://localhost:3000" */
 exports.getFrontendServerUrl = () => {
