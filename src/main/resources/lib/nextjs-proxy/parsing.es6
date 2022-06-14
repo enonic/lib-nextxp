@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerUrl} from "./connection-config";
+import {getFrontendServerUrl, removeStartSlashPattern} from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -142,15 +142,17 @@ export const parseFrontendRequestPath = (req) => {
 
 export const relayUriParams = (req, frontendRequestPath) => {
     const frontendServerUrl = getFrontendServerUrl();
+    const reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
+    const path = `${frontendServerUrl}/${reqPath}`;
     const params = req.params || {};
     if (!params || Object.keys(params).length === 0) {
-        return `${frontendServerUrl}/${frontendRequestPath}`.replace(/\/+/g, '/');
+        return path;
     }
     const paramsString = Object.keys(params)
         .map(key => `${key}=${params[key]}`)
         .join('&');
 
-    return `${frontendServerUrl}/${frontendRequestPath}?${paramsString}`.replace(/\/+/g, '/');
+    return `${path}?${paramsString}`;
 }
 
