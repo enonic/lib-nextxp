@@ -1,13 +1,17 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash) => {
+export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash,) => {
+    // Replace CSS urls in the format: <some-property>: url('</some/url>')>
+    // Do this for JS and HTML files as well to support:
+    // import "../styles.css" in JS
+    // <style>.style {}</style> in HTML
+    const cssUrlPattern = new RegExp(`([a-zA-Z-]+):[ \t]*url\\([ \t]*(['"\`])\/([^)]*)['"\`][ \t]*\\)`, "g");
 
+    // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc)
     const nextApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
-    const cssProxyPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*__proxy__\/)([^'"\` \n\r\t]*)['"\`]`, "g");
 
     return body
-        // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc):
         .replace(nextApiPattern, `$1${proxyUrlWithSlash}$3$1`)
-        .replace(cssProxyPattern, `$1${proxyUrlWithSlash}$3$1`);
+        .replace(cssUrlPattern, `$1: url($2${proxyUrlWithSlash}$3$2)`);
 }
 
 

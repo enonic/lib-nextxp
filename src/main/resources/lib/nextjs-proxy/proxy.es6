@@ -39,6 +39,16 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 };
 
+// lib-http response is different from the one controller awaits
+function okResponse(libHttpResponse) {
+    return {
+        body: libHttpResponse.body || libHttpResponse.bodyStream,
+        status: libHttpResponse.status,
+        contentType: libHttpResponse.contentType,
+        headers: libHttpResponse.headers,
+    }
+}
+
 
 // This proxies both requests made to XP content item paths and to frontend-relative paths (below the proxy "mapping" MAPPING_TO_THIS_PROXY),
 // and uses httpClientLib to make the same request from the frontend, whether its rendered HTML or frontend assets.
@@ -61,7 +71,7 @@ const proxy = function (req) {
     }
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
-    log.info(`---> REQUEST:\n\nUrl: ${frontendUrl}\nMode: ${req.mode}\n\n`);
+    log.info(`---> [${req.mode}]: ${frontendUrl}`);
 
     let renderSingleComponent = false;
 
@@ -88,13 +98,13 @@ const proxy = function (req) {
             url: frontendUrl,
             // contentType: 'text/html',
             connectionTimeout: 5000,
+            readTimeout: 5000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
             headers,
             body: null, // JSON.stringify({ variables: {} }),
             followRedirects: req.mode !== 'edit',
         });
 
         const isOk = response.status === 200;
-
         const isHtml = response.contentType.indexOf('html') !== -1;
         const isJs = response.contentType.indexOf('javascript') !== -1;
         const isCss = response.contentType.indexOf('stylesheet') !== -1;
@@ -118,12 +128,13 @@ const proxy = function (req) {
         response.postProcess = isHtml
 
 
-        log.info("<--- RESPONSE\n\nUrl: " + frontendUrl + "\nstatus: " + response.status + "\ncontentType:" + response.contentType +
-                 "\nrenderSingleComponent:" + renderSingleComponent + "\n");
+        log.info(`<--- [${response.status}]: ${frontendUrl}
+                contentType: ${response.contentType}
+                singleComponent: ${renderSingleComponent}`);
 
         return (!isOk && renderSingleComponent)
                ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
-               : response;
+               : okResponse(response);
 
     } catch (e) {
         log.error(e);
