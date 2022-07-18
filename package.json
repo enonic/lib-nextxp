@@ -41,7 +41,7 @@
         "babel-eslint": "^10.1.0",
         "babel-loader": "^8.2.5",
         "babel-polyfill": "^6.26.0",
-        "eslint": "^8.19.0",
+        "eslint": "^8.20.0",
         "lodash": "^4.17.21",
         "mocha": "^10.0.0",
         "webpack": "^5.73.0",
