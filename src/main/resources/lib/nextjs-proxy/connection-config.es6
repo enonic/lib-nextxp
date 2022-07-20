@@ -8,6 +8,10 @@ exports.getFrontendServerUrl = () => {
     return url.replace(removeEndSlashPattern, '');
 }
 
+exports.getFrontendServerToken = () => {
+    return app?.config?.nextjsToken;
+}
+
 // Header keys for communicating with frontend server
 exports.FROM_XP_PARAM = '__fromxp__';
 
