@@ -2,12 +2,10 @@ const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
 const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
 
-exports.subscribe = function () {
-    log.info('Subscribing to content update events...');
+exports.subscribe = function (siteName) {
+    log.info('Subscribing to content update events for [' + siteName + ']...');
 
-    const site = {
-        _name: 'hmdb'
-    };
+    const sitePath = `/content/${siteName}`;
 
     eventLib.listener({
         type: 'node.updated',
@@ -17,7 +15,7 @@ exports.subscribe = function () {
 
             for (let i = 0; i < event.data.nodes.length; i++) {
                 const node = event.data.nodes[i];
-                const sitePath = `/content/${site._name}`;
+
                 if (node.path.startsWith(sitePath)) {
                     postRevalidateRequest(node.path.replace(sitePath, ''));
                 }
@@ -27,6 +25,9 @@ exports.subscribe = function () {
 }
 
 function postRevalidateRequest(path) {
+    if (!path || path.trim().length === 0) {
+        path = '/';
+    }
     const response = httpClientLib.request({
         method: 'GET',
         url: getFrontendServerUrl() + '/api/revalidate',
@@ -40,6 +41,6 @@ function postRevalidateRequest(path) {
         followRedirects: false,
     });
     if (response.status !== 200) {
-        console.warn(`Revalidate request for path '${path}' status: ${response.status}`);
+        log.warn(`Revalidate request for path '${path}' status: ${response.status}`);
     }
 }
