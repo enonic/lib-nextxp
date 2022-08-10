@@ -5,6 +5,7 @@ const {
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
     COMPONENT_SUBPATH_HEADER,
+    getFrontendServerUrl,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
@@ -39,6 +40,20 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 };
 
+function cookiesArrayToObject(array) {
+    const cookies = {};
+    if (array?.length > 0) {
+        array.forEach(cookie => {
+            const indexEq = cookie.indexOf("=");
+            if (indexEq > 0) {
+                const indexSc = cookie.indexOf(";");
+                cookies[cookie.substring(0, indexEq)] = cookie.substring(indexEq + 1, indexSc > 0 ? indexSc : undefined);
+            }
+        });
+    }
+    return cookies;
+}
+
 // lib-http response is different from the one controller awaits
 function okResponse(libHttpResponse) {
     return {
@@ -46,7 +61,66 @@ function okResponse(libHttpResponse) {
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
         headers: libHttpResponse.headers,
+        cookies: cookiesArrayToObject(libHttpResponse.cookies),
     }
+}
+
+function doRequest(req, renderSingleComponent) {
+    const frontendUrl = req.url;
+    const xpSiteUrl = req.headers['xpBaseUrl'];
+
+    const response = httpClientLib.request(req);
+
+    if (response.status >= 300 && response.status < 400) {
+        // it is a 3xx redirect
+        // http client does not seem to set set-cookie header
+        // so we do it manually instead of followRedirect: true
+        const redirectReq = Object.create(req);
+        redirectReq.url = getFrontendServerUrl() + response.headers['location'];
+        log.debug(`Following redirect to [${redirectReq.url}]:`);
+
+        const setCookie = response.headers['set-cookie'];
+        if (setCookie?.length > 0) {
+            // execute set-cookie as a well-mannered client
+            const cookies = cookiesArrayToObject(setCookie);
+            redirectReq.headers['cookie'] = Object.keys(cookies).map(name => `${name}=${cookies[name]}`).join("; ");
+        }
+
+        return doRequest(redirectReq, renderSingleComponent);
+    }
+
+
+    const isOk = response.status === 200;
+    const isHtml = response.contentType.indexOf('html') !== -1;
+    const isJs = response.contentType.indexOf('javascript') !== -1;
+    const isCss = response.contentType.indexOf('stylesheet') !== -1;
+
+    //TODO: workaround for XP pattern controller mapping not picked up in edit mode
+    const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
+
+    if (isHtml) {
+        response.body = renderSingleComponent
+                        ? getSingleComponentHtml(response.body)
+                        : response.body;
+
+        response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
+
+    }
+
+    if (isHtml || isJs || isCss) {
+        response.body = getBodyWithReplacedUrls(req, response.body, xpSiteUrlWithoutEditMode);
+    }
+
+    response.postProcess = isHtml
+
+
+    log.debug(`<--- [${response.status}]: ${frontendUrl}
+                contentType: ${response.contentType}
+                singleComponent: ${renderSingleComponent}`);
+
+    return (!isOk && renderSingleComponent)
+           ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
+           : okResponse(response);
 }
 
 
@@ -71,7 +145,7 @@ const proxy = function (req) {
     }
 
     const frontendUrl = relayUriParams(req, frontendRequestPath);
-    log.info(`---> [${req.mode}]: ${frontendUrl}`);
+    log.debug(`---> [${req.mode}]: ${frontendUrl}`);
 
     let renderSingleComponent = false;
 
@@ -91,9 +165,8 @@ const proxy = function (req) {
                 renderSingleComponent = true;
             }
         }
-        //log.info(`-->\nfrontendUrl: ${frontendUrl}\nheaders:` + JSON.stringify(headers, null, 2));
 
-        const response = httpClientLib.request({
+        const proxyRequest = {
             method: req.method,
             url: frontendUrl,
             // contentType: 'text/html',
@@ -101,40 +174,10 @@ const proxy = function (req) {
             readTimeout: 5000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
             headers,
             body: null, // JSON.stringify({ variables: {} }),
-            followRedirects: req.mode !== 'edit',
-        });
-
-        const isOk = response.status === 200;
-        const isHtml = response.contentType.indexOf('html') !== -1;
-        const isJs = response.contentType.indexOf('javascript') !== -1;
-        const isCss = response.contentType.indexOf('stylesheet') !== -1;
-
-        //TODO: workaround for XP pattern controller mapping not picked up in edit mode
-        const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
-
-        if (isHtml) {
-            response.body = renderSingleComponent
-                            ? getSingleComponentHtml(response.body)
-                            : response.body;
-
-            response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
-
+            followRedirects: req.mode !== 'edit',  // we handle it manually in edit mode to handle set-cookie header
         }
 
-        if (isHtml || isJs || isCss) {
-            response.body = getBodyWithReplacedUrls(req, response.body, xpSiteUrlWithoutEditMode);
-        }
-
-        response.postProcess = isHtml
-
-
-        log.info(`<--- [${response.status}]: ${frontendUrl}
-                contentType: ${response.contentType}
-                singleComponent: ${renderSingleComponent}`);
-
-        return (!isOk && renderSingleComponent)
-               ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
-               : okResponse(response);
+        return doRequest(proxyRequest, renderSingleComponent);
 
     } catch (e) {
         log.error(e);

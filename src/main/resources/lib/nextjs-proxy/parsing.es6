@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerUrl, removeStartSlashPattern} from "./connection-config";
+import {getFrontendServerToken, getFrontendServerUrl, removeStartSlashPattern, XP_RENDER_MODE} from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -142,17 +142,23 @@ export const parseFrontendRequestPath = (req) => {
 
 export const relayUriParams = (req, frontendRequestPath) => {
     const frontendServerUrl = getFrontendServerUrl();
-    const reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
+    let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
-    const path = `${frontendServerUrl}/${reqPath}`;
-    const params = req.params || {};
-    if (!params || Object.keys(params).length === 0) {
-        return path;
+    const params = req.params;
+    const keys = Object.keys(params);
+    if (keys.length > 0) {
+        const paramsString = keys
+            .map(key => `${key}=${params[key]}`)
+            .join('&');
+
+        reqPath += '?' + paramsString;
     }
-    const paramsString = Object.keys(params)
-        .map(key => `${key}=${params[key]}`)
-        .join('&');
 
-    return `${path}?${paramsString}`;
+    if (req.mode !== XP_RENDER_MODE.EDIT) {
+        return `${frontendServerUrl}/${reqPath}`;
+    } else {
+        const token = encodeURIComponent(getFrontendServerToken());
+        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}`
+    }
 }
 
