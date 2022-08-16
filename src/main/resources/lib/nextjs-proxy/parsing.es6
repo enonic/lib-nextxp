@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerToken, getFrontendServerUrl, removeStartSlashPattern, XP_RENDER_MODE} from "./connection-config";
+import {getFrontendServerToken, getFrontendServerUrl, removeStartSlashPattern} from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -140,8 +140,7 @@ export const parseFrontendRequestPath = (req) => {
 }
 
 
-export const relayUriParams = (req, frontendRequestPath) => {
-    const frontendServerUrl = getFrontendServerUrl();
+export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componentSubPath) => {
     let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
     const params = req.params;
@@ -153,8 +152,10 @@ export const relayUriParams = (req, frontendRequestPath) => {
 
         reqPath += '?' + paramsString;
     }
-
-    if (req.mode !== XP_RENDER_MODE.EDIT) {
+    const frontendServerUrl = getFrontendServerUrl();
+    if (componentSubPath) {
+        return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
+    } else if (nextjsCookies) {
         return `${frontendServerUrl}/${reqPath}`;
     } else {
         const token = encodeURIComponent(getFrontendServerToken());
