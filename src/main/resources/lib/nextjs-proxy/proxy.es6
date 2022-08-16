@@ -1,4 +1,6 @@
 const httpClientLib = require('/lib/http-client');
+const portalLib = require('/lib/xp/portal');
+const cacheLib = require('/lib/cache');
 
 const {
     FROM_XP_PARAM,
@@ -9,6 +11,13 @@ const {
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
+
+let COOKIE_KEY;
+
+const COOKIE_CACHE = cacheLib.newCache({
+    size: 10,
+    expire: 3600
+});
 
 
 const errorResponse = function (url, status, message, req, renderSingleComponent) {
@@ -83,7 +92,9 @@ function doRequest(req, renderSingleComponent) {
         if (setCookie?.length > 0) {
             // execute set-cookie as a well-mannered client
             const cookies = cookiesArrayToObject(setCookie);
-            redirectReq.headers['cookie'] = Object.keys(cookies).map(name => `${name}=${cookies[name]}`).join("; ");
+            const cookieString = Object.keys(cookies).map(name => `${name}=${cookies[name]}`).join("; ");
+            setNextjsCookies(cookieString);
+            redirectReq.headers['cookie'] = cookieString;
         }
 
         return doRequest(redirectReq, renderSingleComponent);
@@ -144,7 +155,10 @@ const proxy = function (req) {
         };
     }
 
-    const frontendUrl = relayUriParams(req, frontendRequestPath);
+    initNextjsCookieName();
+    const nextjsCookies = getNextjsCookies();
+
+    const frontendUrl = relayUriParams(req, frontendRequestPath, !!nextjsCookies, componentSubPath);
     log.debug(`---> [${req.mode}]: ${frontendUrl}`);
 
     let renderSingleComponent = false;
@@ -155,6 +169,9 @@ const proxy = function (req) {
             [XP_RENDER_MODE_HEADER]: req.mode,
             xpBaseUrl: xpSiteUrl
         };
+        if (nextjsCookies) {
+            headers['cookie'] = nextjsCookies;
+        }
         if (componentSubPath) {
             headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
 
@@ -174,7 +191,7 @@ const proxy = function (req) {
             readTimeout: 5000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
             headers,
             body: null, // JSON.stringify({ variables: {} }),
-            followRedirects: req.mode !== 'edit',  // we handle it manually in edit mode to handle set-cookie header
+            followRedirects: false,  // we handle it manually to control headers
         }
 
         return doRequest(proxyRequest, renderSingleComponent);
@@ -184,6 +201,23 @@ const proxy = function (req) {
         return errorResponse(frontendUrl, 500, `Exception: ${e}`, undefined, renderSingleComponent);
     }
 };
+
+function getNextjsCookies() {
+    return COOKIE_CACHE.get(COOKIE_KEY, () => undefined);
+}
+
+function setNextjsCookies(cookies) {
+    removeNextjsCookies();
+    return COOKIE_CACHE.get(COOKIE_KEY, () => cookies);
+}
+
+function initNextjsCookieName() {
+    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${portalLib.getSite()._name}`;
+}
+
+function removeNextjsCookies() {
+    COOKIE_CACHE.remove(COOKIE_KEY);
+}
 
 exports.get = proxy
 
