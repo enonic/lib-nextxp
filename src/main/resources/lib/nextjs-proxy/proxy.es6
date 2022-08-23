@@ -15,8 +15,8 @@ const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 let COOKIE_KEY;
 
 const COOKIE_CACHE = cacheLib.newCache({
-    size: 10,
-    expire: 3600
+    size: 300,   // good enough for 100 sites with 3 render modes per site
+    expire: 3600,
 });
 
 
@@ -155,7 +155,7 @@ const proxy = function (req) {
         };
     }
 
-    initNextjsCookieName();
+    initNextjsCookieName(req.mode);
     const nextjsCookies = getNextjsCookies();
 
     const frontendUrl = relayUriParams(req, frontendRequestPath, !!nextjsCookies, componentSubPath);
@@ -203,19 +203,25 @@ const proxy = function (req) {
 };
 
 function getNextjsCookies() {
-    return COOKIE_CACHE.get(COOKIE_KEY, () => undefined);
+    const cookies = COOKIE_CACHE.get(COOKIE_KEY, () => undefined);
+    if (cookies) {
+        log.debug(`Using cached cookies [${COOKIE_KEY}]`);
+    }
+    return cookies;
 }
 
 function setNextjsCookies(cookies) {
     removeNextjsCookies();
+    log.debug(`Caching cookies [${COOKIE_KEY}]`);
     return COOKIE_CACHE.get(COOKIE_KEY, () => cookies);
 }
 
-function initNextjsCookieName() {
-    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${portalLib.getSite()._name}`;
+function initNextjsCookieName(requestMode) {
+    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${requestMode}_OF_${portalLib.getSite()._name}`;
 }
 
 function removeNextjsCookies() {
+    log.debug(`Removing cookies [${COOKIE_KEY}]`);
     COOKIE_CACHE.remove(COOKIE_KEY);
 }
 
