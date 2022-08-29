@@ -147,7 +147,7 @@ export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componen
     const keys = Object.keys(params);
     if (keys.length > 0) {
         const paramsString = keys
-            .map(key => `${key}=${params[key]}`)
+            .map(key => `${key}=${encodeURIComponent(params[key])}`)
             .join('&');
 
         reqPath += '?' + paramsString;

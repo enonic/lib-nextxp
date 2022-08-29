@@ -41,6 +41,6 @@ function postRevalidateRequest(path) {
         followRedirects: false,
     });
     if (response.status !== 200) {
-        log.warn(`Revalidate request for path '${path}' status: ${response.status}`);
+        log.warning(`Revalidate request for path '${path}' status: ${response.status}`);
     }
 }
