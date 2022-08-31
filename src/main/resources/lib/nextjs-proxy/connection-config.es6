@@ -1,15 +1,45 @@
+const contentLib = require('/lib/xp/content');
+const contextLib = require('/lib/xp/context');
 const removeEndSlashPattern = /\/+$/;
 export const removeStartSlashPattern = /^\/+/;
 
-/** Return the value frontendServerUrl as configured in host app's site.xml, or fall back to default value "http://localhost:3000" */
-exports.getFrontendServerUrl = () => {
-    const config = app?.config || {};
-    const url = config.nextjsUrl || "http://localhost:3000";
+function getSiteConfigInContext(pathOrId) {
+    return contentLib.getSiteConfig({
+        key: pathOrId || '/',
+        applicationKey: app.name,
+    });
+}
+
+export function getSiteConfig(pathOrId, repoId) {
+    const context = contextLib.get();
+    if (context.repository !== repoId) {
+        try {
+            return contextLib.run({
+                principals: ["role:system.admin"],
+                repository: repoId,
+            }, function () {
+                return getSiteConfigInContext(pathOrId);
+            });
+        } catch (e) {
+            log.info('Error: ' + e.message);
+        }
+    } else {
+        return getSiteConfigInContext(pathOrId);
+    }
+}
+
+exports.getFrontendServerUrl = (config) => {
+    // read site config first
+    let url = config?.nextjsUrl;
+    if (!url) {
+        // fall back to config file
+        url = app?.config?.nextjsUrl || "http://localhost:3000";
+    }
     return url.replace(removeEndSlashPattern, '');
 }
 
-exports.getFrontendServerToken = () => {
-    return app?.config?.nextjsToken;
+exports.getFrontendServerToken = (config) => {
+    return config?.nextjsToken || app?.config?.nextjsToken;
 }
 
 // Header keys for communicating with frontend server
