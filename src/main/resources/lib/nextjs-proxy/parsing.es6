@@ -108,10 +108,7 @@ const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
  *          frontendRequestPath: frontendserver-relative path to pass on through the proxy: whatever path to a page (xp-content or not), frontend asset etc., that the proxy should request.
  *          error: HTTP status error code.
  */
-export const parseFrontendRequestPath = (req) => {
-
-    const site = portalLib.getSite();
-    const content = portalLib.getContent() || {};
+export const parseFrontendRequestPath = (req, site, content) => {
 
     const xpSiteUrl = portalLib.pageUrl({
         path: site._path,
@@ -140,7 +137,7 @@ export const parseFrontendRequestPath = (req) => {
 }
 
 
-export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componentSubPath) => {
+export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componentSubPath, config) => {
     let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
     const params = req.params;
@@ -152,13 +149,13 @@ export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componen
 
         reqPath += '?' + paramsString;
     }
-    const frontendServerUrl = getFrontendServerUrl();
+    const frontendServerUrl = getFrontendServerUrl(config);
     if (componentSubPath) {
         return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
     } else if (nextjsCookies) {
         return `${frontendServerUrl}/${reqPath}`;
     } else {
-        const token = encodeURIComponent(getFrontendServerToken());
+        const token = encodeURIComponent(getFrontendServerToken(config));
         return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}`
     }
 }

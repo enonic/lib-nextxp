@@ -74,7 +74,7 @@ function okResponse(libHttpResponse) {
     }
 }
 
-function doRequest(req, renderSingleComponent) {
+function doRequest(req, renderSingleComponent, config) {
     const frontendUrl = req.url;
     const xpSiteUrl = req.headers['xpBaseUrl'];
 
@@ -85,7 +85,7 @@ function doRequest(req, renderSingleComponent) {
         // http client does not seem to set set-cookie header
         // so we do it manually instead of followRedirect: true
         const redirectReq = Object.create(req);
-        redirectReq.url = getFrontendServerUrl() + response.headers['location'];
+        redirectReq.url = getFrontendServerUrl(config) + response.headers['location'];
         log.debug(`Following redirect to [${redirectReq.url}]:`);
 
         const setCookie = response.headers['set-cookie'];
@@ -97,7 +97,7 @@ function doRequest(req, renderSingleComponent) {
             redirectReq.headers['cookie'] = cookieString;
         }
 
-        return doRequest(redirectReq, renderSingleComponent);
+        return doRequest(redirectReq, renderSingleComponent, config);
     }
 
 
@@ -147,7 +147,11 @@ const proxy = function (req) {
         return errorResponse(null, 403, 'Frontend proxy not available in live mode.', req);
     }
 
-    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req);
+    const site = portalLib.getSite();
+    const content = portalLib.getContent() || {};
+    const siteConfig = portalLib.getSiteConfig();
+
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site, content);
 
     if (error) {
         return {
@@ -155,10 +159,10 @@ const proxy = function (req) {
         };
     }
 
-    initNextjsCookieName(req.mode);
+    initNextjsCookieName(req.mode, site);
     const nextjsCookies = getNextjsCookies();
 
-    const frontendUrl = relayUriParams(req, frontendRequestPath, !!nextjsCookies, componentSubPath);
+    const frontendUrl = relayUriParams(req, frontendRequestPath, !!nextjsCookies, componentSubPath, siteConfig);
     log.debug(`---> [${req.mode}]: ${frontendUrl}`);
 
     let renderSingleComponent = false;
@@ -194,7 +198,7 @@ const proxy = function (req) {
             followRedirects: false,  // we handle it manually to control headers
         }
 
-        return doRequest(proxyRequest, renderSingleComponent);
+        return doRequest(proxyRequest, renderSingleComponent, siteConfig);
 
     } catch (e) {
         log.error(e);
@@ -216,8 +220,8 @@ function setNextjsCookies(cookies) {
     return COOKIE_CACHE.get(COOKIE_KEY, () => cookies);
 }
 
-function initNextjsCookieName(requestMode) {
-    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${requestMode}_OF_${portalLib.getSite()._name}`;
+function initNextjsCookieName(requestMode, site) {
+    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${requestMode}_OF_${site._name}`;
 }
 
 function removeNextjsCookies() {
