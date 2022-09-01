@@ -10,7 +10,16 @@ const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-con
 * Use this function in your apps main.js file
 * to initialize node events listener for all nextjs projects
 * */
+const REPOS = [];
+
 export function subscribe() {
+    REPOS.push(...queryNextjsRepos());
+
+    subscribeToNodeEvents();
+    subscribeToRepoEvents();
+}
+
+function queryNextjsRepos() {
     const sources = projectLib.list().map(repo => ({
         repoId: `com.enonic.cms.${repo.id}`,
         branch: "master",
@@ -28,41 +37,82 @@ export function subscribe() {
         }
     });
 
-    log.debug('Query nextjs sites to listen: ' + JSON.stringify(sitesQueryResult, null, 2));
-
-    if (sitesQueryResult.hits) {
-        subscribeToNodeEvents(sitesQueryResult.hits.map((site) => (site.repoId)))
-    }
+    return sitesQueryResult.hits.map(site => site.repoId);
 }
 
-function subscribeToNodeEvents(repos) {
-    log.info(`Subscribing to content update events for repos [${repos}]...`);
+function refreshNextjsRepos() {
+    // clear list of repos
+    while (REPOS.length) {
+        REPOS.pop();
+    }
+    // load it with actual data
+    REPOS.push(...queryNextjsRepos());
+    log.debug(`Updated content event repos: [${REPOS}]`);
+}
 
+function subscribeToRepoEvents() {
+    eventLib.listener({
+        type: 'repository.*',
+        localOnly: false,
+        callback: function (event) {
+            log.debug(`Got [${event.type}] event for: ${event.data?.id}`);
+            refreshNextjsRepos();
+        }
+    });
+    log.info(`Subscribed to repository update events...`);
+}
+
+function subscribeToNodeEvents() {
     eventLib.listener({
         type: 'node.*',
         localOnly: false,
         callback: function (event) {
-            for (let i = 0; i < event.data.nodes.length; i++) {
+            log.debug(`Got [${event.type}] event: ${JSON.stringify(event, null, 2)}`);
 
+            let reposUpdated = false;
+            for (let i = 0; i < event.data.nodes.length; i++) {
                 const node = event.data.nodes[i];
-                if (node.path.startsWith('/content/') && repos.indexOf(node.repo) >= 0) {
-                    log.info(`Got [${event.type}] event for: ${node.path}`);
-                    postRevalidateRequest(node.id, node.path, node.repo);    // remove the /content/<site>
+
+                if (node.branch !== 'master' || !node.path.startsWith('/content/')) {
+                    // continue to the next node until it's content from master
+                    continue;
+                }
+
+                if (!reposUpdated) {
+                    // update repos list in case a nextjs site was added to an existing repo
+                    reposUpdated = true;
+                    refreshNextjsRepos();
+                }
+
+                if (REPOS.indexOf(node.repo) >= 0) {
+                    sendRevalidateAll(node.id, node.path, node.repo);
+                    break;
                 }
             }
         }
     });
+    log.info(`Subscribed to content update events for repos: ${REPOS}`);
 }
 
-function postRevalidateRequest(nodeId, nodePath, repoId) {
-    let siteRelativePath = nodePath.replace(/\/content\/[^\s\/]+/, '');
-    if (!siteRelativePath || siteRelativePath.trim().length === 0) {
-        siteRelativePath = '/';
+function sendRevalidateAll(nodeId, nodePath, repoId) {
+    const config = getSiteConfig(nodeId, repoId);
+
+    sendRevalidateRequest(null, config);
+}
+
+function sendRevalidateNode(nodeId, nodePath, repoId) {
+    let contentPath = nodePath.replace(/\/content\/[^\s\/]+/, '');
+    if (!contentPath || contentPath.trim().length === 0) {
+        contentPath = '/';
     }
 
     const config = getSiteConfig(nodeId, repoId)
 
-    log.debug('Requesting revalidation of [' + siteRelativePath + ']...');
+    sendRevalidateRequest(contentPath, config);
+}
+
+function sendRevalidateRequest(contentPath, config) {
+    log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
     const response = httpClientLib.request({
         method: 'GET',
         url: getFrontendServerUrl(config) + '/api/revalidate',
@@ -70,14 +120,15 @@ function postRevalidateRequest(nodeId, nodePath, repoId) {
         connectionTimeout: 5000,
         readTimeout: 5000,
         queryParams: {
-            path: siteRelativePath,
+            path: contentPath,
+            revalidateAll: contentPath === null,
             token: getFrontendServerToken(config),
         },
         followRedirects: false,
     });
     if (response.status !== 200) {
-        log.warning(`Revalidation of '${siteRelativePath}' status: ${response.status}`);
+        log.warning(`Revalidation of '${contentPath}' status: ${response.status}`);
     } else {
-        log.debug(`Revalidation of [${siteRelativePath}] done`);
+        log.debug(`Revalidation of [${contentPath}] done`);
     }
 }
