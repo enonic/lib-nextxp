@@ -137,10 +137,9 @@ export const parseFrontendRequestPath = (req, site, content) => {
 }
 
 
-export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componentSubPath, config) => {
+export const relayUriParams = (params, frontendRequestPath, hasNextjsCookies, componentSubPath, config) => {
     let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
-    const params = req.params;
     const keys = Object.keys(params);
     if (keys.length > 0) {
         const paramsString = keys
@@ -152,7 +151,7 @@ export const relayUriParams = (req, frontendRequestPath, nextjsCookies, componen
     const frontendServerUrl = getFrontendServerUrl(config);
     if (componentSubPath) {
         return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
-    } else if (nextjsCookies) {
+    } else if (hasNextjsCookies) {
         return `${frontendServerUrl}/${reqPath}`;
     } else {
         const token = encodeURIComponent(getFrontendServerToken(config));
