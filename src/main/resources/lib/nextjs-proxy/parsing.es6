@@ -123,7 +123,10 @@ export const parseFrontendRequestPath = (req, site, content) => {
     // If yes, it's a content item path: pass it directly to the frontend.
     // If no, it's either a non-existing content (return a 404), or it's <domain>/<siteUrl>/<proxyMatchPattern>/<frontendRequestPath>. Use nonContentPath to determine <frontendRequestPath> and pass that to the frontend.
     const siteRelativeContentPath = getSiteRelativeContentPath(content._path, site._path);
-    const {siteRelativeReqPath, componentSubPath} = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
+    const {
+        siteRelativeReqPath,
+        componentSubPath
+    } = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
 
     const isContentItem = siteRelativeContentPath === siteRelativeReqPath;
 
@@ -137,25 +140,35 @@ export const parseFrontendRequestPath = (req, site, content) => {
 }
 
 
-export const relayUriParams = (params, frontendRequestPath, hasNextjsCookies, componentSubPath, config) => {
+export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, componentSubPath, config) => {
     let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
 
-    const keys = Object.keys(params);
-    if (keys.length > 0) {
-        const paramsString = keys
-            .map(key => `${key}=${encodeURIComponent(params[key])}`)
-            .join('&');
-
-        reqPath += '?' + paramsString;
-    }
     const frontendServerUrl = getFrontendServerUrl(config);
-    if (componentSubPath) {
-        return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
-    } else if (hasNextjsCookies) {
-        return `${frontendServerUrl}/${reqPath}`;
+
+    if (hasNextjsCookies) {
+        // TODO: need a more secure way of detecting isRenderable request
+        const isRenderableRequest = req.method === 'HEAD' && req.params['mode'] !== undefined;
+        if (isRenderableRequest) {
+            return `${frontendServerUrl}/_renderable?contentPath=${encodeURIComponent(reqPath)}`;
+        } else if (componentSubPath) {
+            return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
+        } else {
+            return `${frontendServerUrl}/${reqPath}${serializeParams(req.params)}`;
+        }
     } else {
         const token = encodeURIComponent(getFrontendServerToken(config));
         return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}`
     }
+}
+
+function serializeParams(params) {
+    let paramsString;
+    const keys = Object.keys(params);
+    if (keys.length > 0) {
+        paramsString = '?' + keys
+            .map(key => `${key}=${encodeURIComponent(params[key])}`)
+            .join('&');
+    }
+    return paramsString || '';
 }
 
