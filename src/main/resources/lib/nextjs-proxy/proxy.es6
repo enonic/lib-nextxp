@@ -79,7 +79,7 @@ function okResponse(libHttpResponse) {
 function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig) {
 
     let nextjsCookies = getNextjsCookies();
-    const frontendUrl = relayUriParams(originalReq.params, frontendRequestPath, !!nextjsCookies, componentSubPath, siteConfig);
+    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, !!nextjsCookies, componentSubPath, siteConfig);
 
     let renderSingleComponent = false;
 
