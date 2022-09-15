@@ -1,10 +1,13 @@
-# lib-nextjs-proxy
+# lib-nextjs
 
-XP-side proxy that can relay rendering to an external server (using it to render the frontend preview of a content item in content studio).
+XP-side proxy that can relay rendering to an external server (using it to render the frontend preview of a content item
+in content studio).
 
-The lib adds a proxy controller (_/lib/nextjs-proxy/proxy.js_) that requires
-a [controller mapping](https://developer.enonic.com/docs/xp/stable/cms/mappings) in the host app's _site.xml_ (see "installation" above).
-The proxy sends requests to `<frontendUrl>/X/Y/Z`, and handles any errors or returns the response so that is rendered as a preview in
+The lib adds a proxy controller (_/lib/nextjs/proxy.js_) that requires
+a [controller mapping](https://developer.enonic.com/docs/xp/stable/cms/mappings) in the host app's _site.xml_ (see "
+installation" above).
+The proxy sends requests to `<frontendUrl>/X/Y/Z`, and handles any errors or returns the response so that is rendered as
+a preview in
 content studio.
 
 ----
@@ -15,7 +18,7 @@ content studio.
 
     ```groovy
     dependencies {
-        include 'com.enonic.lib:lib-frontend-proxy:<version>'
+        include 'com.enonic.lib:lib-nextjs:<version>'
     }
     ```
 
@@ -26,7 +29,7 @@ content studio.
 2. Add to XP project's _site.xml_ `<mappings>` section:
 
     ```xml
-    <mapping controller="/lib/nextjs-proxy/proxy.js" order="99">
+    <mapping controller="/lib/nextjs/proxy.js" order="99">
       <pattern>/.*</pattern>
     </mapping>
     ```
@@ -37,7 +40,7 @@ content studio.
 
    Proxy can be invoked directly in page/component controllers as well:
    ```javascript
-   var proxy = require('/lib/nextjs-proxy/proxy');
+   var proxy = require('/lib/nextjs/proxy');
    
    exports.get = function (req) {
         return proxy.get(req);
@@ -86,5 +89,5 @@ _Changes to this file are applied immediately!_
 <a id="issues"></a>
 ## Issues:
 
-https://github.com/enonic/lib-frontend-proxy/issues/
+https://github.com/enonic/lib-nextjs/issues/
 
