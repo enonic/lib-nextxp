@@ -7,7 +7,6 @@ const {
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
     COMPONENT_SUBPATH_HEADER,
-    getFrontendServerUrl,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
@@ -107,8 +106,8 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         method: originalReq.method,
         url: frontendUrl,
         // contentType: 'text/html',
-        connectionTimeout: 5000,
-        readTimeout: 5000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
+        connectionTimeout: 10000,
+        readTimeout: 10000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
         headers,
         body: null, // JSON.stringify({ variables: {} }),
         followRedirects: false,  // we handle it manually to control headers
@@ -141,9 +140,11 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         }
 
         const isOk = response.status === 200;
-        const isHtml = response.contentType.indexOf('html') !== -1;
-        const isJs = response.contentType.indexOf('javascript') !== -1;
-        const isCss = response.contentType.indexOf('stylesheet') !== -1;
+        const contentType = response.contentType;
+        const isHtml = contentType.indexOf('html') !== -1;
+        const isJs = contentType.indexOf('javascript') !== -1;
+        const isCss = (contentType.indexOf('stylesheet') !== -1)
+            || (contentType.indexOf('text/css') !== -1);
 
         //TODO: workaround for XP pattern controller mapping not picked up in edit mode
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
