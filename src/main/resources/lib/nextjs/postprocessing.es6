@@ -4,7 +4,8 @@ export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash,) => {
     // Do this for JS and HTML files as well to support:
     // import "../styles.css" in JS
     // <style>.style {}</style> in HTML
-    const cssUrlPattern = new RegExp(`([a-zA-Z-]+):[ \t]*url\\([ \t]*(['"\`])\/([^)]*)['"\`][ \t]*\\)`, "g");
+    // (Quotes are optional because next doesn't use them in production mode)
+    const cssUrlPattern = new RegExp(`([a-zA-Z-]+):[ \t]*url\\([ \t]*(['"\`])?\/([^)]*)['"\`]?[ \t]*\\)`, "g");
 
     // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc)
     const nextApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
