@@ -71,16 +71,21 @@ function okResponse(libHttpResponse) {
         body: libHttpResponse.body || libHttpResponse.bodyStream,
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
-        headers: libHttpResponse.headers,
     }
 }
 
-function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig) {
+function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, counter) {
 
     let nextjsCookies = getNextjsCookies();
-    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, !!nextjsCookies, componentSubPath, siteConfig);
-
+    const hadNextJsCookies = !!nextjsCookies;
+    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextJsCookies, componentSubPath, siteConfig);
     let renderSingleComponent = false;
+
+    if (counter >= 10) {
+        const message = 'Request recursion limit exceeded: ' + counter;
+        log.error(message);
+        return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
+    }
 
     const headers = {
         [FROM_XP_PARAM]: originalReq.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE,
@@ -122,12 +127,24 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
 
         nextjsCookies = getNextjsCookies();
 
-        if (!nextjsCookies?.length) {
-            // nextjs cookies have probably expired and server returned empty ones
-            // make a new preview request to get new nextjs cookies
-            log.debug(`Renewing nextjs cookies [${COOKIE_KEY}] at: ${frontendUrl}`);
+        if (!nextjsCookies && !hadNextJsCookies) {
+            // we did not have nextjs cookies and we couldn't obtain them
+            let message = `Nextjs server did not return preview token`;
 
-            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig);
+            // Try reading the response message
+            if (response.message) {
+                message = `${message}: ${response.message}`;
+            } else {
+                try {
+                    const json = JSON.parse(response.body);
+                    if (json?.message) {
+                        message = `${message}: ${json.message}`;
+                    }
+                } catch (parseError) {
+                }
+            }
+
+            return errorResponse(frontendUrl, response.status, message, proxyRequest, renderSingleComponent);
         }
 
         if (response.status >= 300 && response.status < 400 && nextjsCookies) {
@@ -136,7 +153,16 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             // so we do it manually instead of followRedirect: true
             log.debug(`Following redirect to: ${response.headers['location']}`);
 
-            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig);
+            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
+        }
+
+        if (!nextjsCookies?.length) {
+
+            // nextjs cookies have probably expired and server returned empty ones
+            // make a new preview request to get new nextjs cookies
+            log.debug(`Renewing nextjs cookies [${COOKIE_KEY}] at: ${frontendUrl}`);
+
+            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
         }
 
         const isOk = response.status === 200;
@@ -150,15 +176,13 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
 
         if (isHtml) {
-            response.body = renderSingleComponent
-                ? getSingleComponentHtml(response.body)
-                : response.body;
-
+            if (response.body && renderSingleComponent) {
+                response.body = getSingleComponentHtml(response.body);
+            }
             response.pageContributions = getPageContributionsWithBaseUrl(response, xpSiteUrlWithoutEditMode);
-
         }
 
-        if (isHtml || isJs || isCss) {
+        if (response.body && (isHtml || isJs || isCss)) {
             response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode);
         }
 
@@ -170,7 +194,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
                 singleComponent: ${renderSingleComponent}`);
 
         return (!isOk && renderSingleComponent)
-            ? errorResponse(frontendUrl, response.status, response.message, undefined, true)
+            ? errorResponse(frontendUrl, response.status, response.message, proxyRequest, true)
             : okResponse(response);
 
 
@@ -236,7 +260,7 @@ const proxy = function (req) {
 
     initNextjsCookieName(req.mode, site);
 
-    return doRequest(req, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig);
+    return doRequest(req, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, 0);
 };
 
 function getNextjsCookies() {
