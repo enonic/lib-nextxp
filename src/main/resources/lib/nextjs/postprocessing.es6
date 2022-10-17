@@ -1,18 +1,23 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash,) => {
-    // Replace CSS urls in the format: <some-property>: url('</some/url>')>
-    // Do this for JS and HTML files as well to support:
-    // import "../styles.css" in JS
-    // <style>.style {}</style> in HTML
-    // (Quotes are optional because next doesn't use them in production mode)
-    const cssUrlPattern = new RegExp(`url\(\s*(['"\`])?\/([^'"\`]*)['"\`]?\s*\)`, "gm");
+export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss) => {
+    // double slashes is the right way of escaping bracket!
+    const cssUrlPattern = new RegExp(`url\\([ \r\n\t]*(['"\`])?\/([^'"\`]*)['"\`]?[ \r\n\t]*\\)`, "g");
 
     // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc)
     const nextApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
 
-    return body
-        .replace(nextApiPattern, `$1${proxyUrlWithSlash}$3$1`)
-        .replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`);
+    // Don't do next static urls replacement in css
+    const result = isCss ?
+        body :
+        body.replace(nextApiPattern, `$1${proxyUrlWithSlash}$3$1`);
+
+    // But do css urls replacement for every file type
+    // Replace CSS urls in the following format: url('</some/url>')>
+    // Do this for JS and HTML files as well to support:
+    // import "../styles.css" in JS
+    // <style>.style {}</style> in HTML
+    // (Quotes are optional because next doesn't use them in production mode)
+    return result.replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`);
 }
 
 
@@ -23,8 +28,8 @@ export const getPageContributionsWithBaseUrl = (response, siteUrl) => {
         headBegin: [
             ...(
                 (typeof pageContributions.headBegin === 'string')
-                ? [pageContributions.headBegin]
-                : pageContributions.headBegin || []
+                    ? [pageContributions.headBegin]
+                    : pageContributions.headBegin || []
             ).map(item => item.replace(/<base\s+.*?(\/>|\/base>)/g, '')),
             `<base href="${siteUrl}" />`
         ]
