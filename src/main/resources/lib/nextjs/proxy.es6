@@ -183,7 +183,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         }
 
         if (response.body && (isHtml || isJs || isCss)) {
-            response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode);
+            response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode, isCss);
         }
 
         response.postProcess = isHtml
