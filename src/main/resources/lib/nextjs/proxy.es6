@@ -17,6 +17,9 @@ const COOKIE_CACHE = cacheLib.newCache({
     size: 300,   // good enough for 100 sites with 3 render modes per site
     expire: 3600,
 });
+const ALLOWED_RESPONSE_HEADERS = [
+    'content-security-policy'
+];
 
 
 let COOKIE_KEY;
@@ -67,10 +70,21 @@ function cookiesArrayToObject(array) {
 
 // lib-http response is different from the one controller awaits
 function okResponse(libHttpResponse) {
+    let libHeaders = libHttpResponse.headers || {};
+
+    // copy the listed headers
+    const headers = Object.keys(libHeaders).reduce((all, header) => {
+        if (ALLOWED_RESPONSE_HEADERS.indexOf(header) > -1) {
+            all[header] = libHeaders[header];
+        }
+        return all;
+    }, {});
+
     return {
         body: libHttpResponse.body || libHttpResponse.bodyStream,
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
+        headers,
     }
 }
 
