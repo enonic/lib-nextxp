@@ -22,7 +22,8 @@ const ALLOWED_RESPONSE_HEADERS = [
 ];
 
 
-let COOKIE_KEY;
+let COOKIE_DATA_KEY;
+let COOKIE_TOKEN_KEY;
 
 
 const errorResponse = function (url, status, message, req, renderSingleComponent) {
@@ -58,6 +59,9 @@ function cookiesArrayToObject(array) {
     const cookies = {};
     if (array?.length > 0) {
         array.forEach(cookie => {
+            if (!cookie?.length) {
+                return;
+            }
             const indexEq = cookie.indexOf("=");
             if (indexEq > 0) {
                 const indexSc = cookie.indexOf(";");
@@ -90,9 +94,15 @@ function okResponse(libHttpResponse) {
 
 function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, counter) {
 
-    let nextjsCookies = getNextjsCookies();
-    const hadNextJsCookies = !!nextjsCookies;
-    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextJsCookies, componentSubPath, siteConfig);
+    let nextjsToken = getNextjsTokenCookie();
+    const nextjsData = getNextjsDataCookie();
+    const hadNextCookies = !!nextjsToken && !!nextjsData;
+    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, componentSubPath, siteConfig);
+    if (!nextjsToken) {
+        log.debug('No nextjs token cached, getting one at: ' + frontendUrl);
+    } else if (!nextjsData) {
+        log.debug('Nextjs token is present, but there is no data for ' + originalReq.mode + ' mode cached, so getting one at: ' + frontendUrl);
+    }
     let renderSingleComponent = false;
 
     if (counter >= 10) {
@@ -102,13 +112,13 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     }
 
     const headers = {
-        [FROM_XP_PARAM]: originalReq.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE,
+        [FROM_XP_PARAM]: getFromXPParam(originalReq),
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
-        xpBaseUrl: xpSiteUrl
+        xpBaseUrl: xpSiteUrl,
     };
-    if (nextjsCookies) {
-        log.debug(`Using cached nextjs cookies [${COOKIE_KEY}] for: ${frontendUrl}`);
-        headers['cookie'] = nextjsCookies;
+    if (hadNextCookies) {
+        log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}] = ${nextjsToken} for: ${frontendUrl}`);
+        headers['cookie'] = `${NEXT_TOKEN}=${nextjsToken}; ${NEXT_DATA}=${nextjsData}`;
     }
     if (componentSubPath) {
         headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
@@ -137,11 +147,11 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     try {
         const response = httpClientLib.request(proxyRequest);
 
-        processNextjsSetCookieHeader(response);
+        processNextjsSetCookieHeader(response, frontendUrl);
 
-        nextjsCookies = getNextjsCookies();
+        nextjsToken = getNextjsTokenCookie();
 
-        if (!nextjsCookies && !hadNextJsCookies) {
+        if (!nextjsToken && !hadNextCookies) {
             // we did not have nextjs cookies and we couldn't obtain them
             let message = `Nextjs server did not return preview token`;
 
@@ -161,7 +171,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             return errorResponse(frontendUrl, response.status, message, proxyRequest, renderSingleComponent);
         }
 
-        if (response.status >= 300 && response.status < 400 && nextjsCookies) {
+        if (response.status >= 300 && response.status < 400 && nextjsToken) {
             // it is a 3xx redirect
             // http client does not seem to set set-cookie header
             // so we do it manually instead of followRedirect: true
@@ -170,21 +180,25 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
         }
 
-        if (!nextjsCookies?.length) {
-
-            // nextjs cookies have probably expired and server returned empty ones
-            // make a new preview request to get new nextjs cookies
-            log.debug(`Renewing nextjs cookies [${COOKIE_KEY}] at: ${frontendUrl}`);
-
-            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
-        }
-
+        const isVercelPrerender = response.headers['x-vercel-cache'] === 'PRERENDER';
         const isOk = response.status === 200;
-        const contentType = response.contentType;
+        const contentType = response.contentType || '';
         const isHtml = contentType.indexOf('html') !== -1;
         const isJs = contentType.indexOf('javascript') !== -1;
         const isCss = (contentType.indexOf('stylesheet') !== -1)
             || (contentType.indexOf('text/css') !== -1);
+
+        if (!nextjsToken?.length || isVercelPrerender && isHtml) {
+            if (isVercelPrerender) {
+                log.debug('Vercel returned static content instead of preview, the token had most likely expired');
+                removeNextjsTokenCookie(true);
+            }
+            // nextjs cookies have probably expired and server returned empty ones
+            // make a new preview request to get new nextjs cookies
+            log.debug(`Renewing nextjs cookies [${COOKIE_DATA_KEY}] at: ${frontendUrl}`);
+
+            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
+        }
 
         //TODO: workaround for XP pattern controller mapping not picked up in edit mode
         const xpSiteUrlWithoutEditMode = xpSiteUrl.replace(/\/edit\//, '/inline/');
@@ -218,7 +232,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     }
 }
 
-function processNextjsSetCookieHeader(response) {
+function processNextjsSetCookieHeader(response, frontendUrl) {
     const cookieArray = response.headers['set-cookie'];
 
     if (cookieArray?.length > 0) {
@@ -228,21 +242,14 @@ function processNextjsSetCookieHeader(response) {
         const nextData = cookieObject[NEXT_DATA];
 
         if (nextToken?.length && nextData?.length) {
-
-            const nextCookies = Object.keys({
-                [NEXT_TOKEN]: nextToken,
-                [NEXT_DATA]: nextData,
-            })
-                .map(name => `${name}=${cookieObject[name]}`)
-                .join("; ");
-
-            setNextjsCookies(nextCookies);
+            setNextjsTokenCookie(nextToken);
+            setNextjsDataCookie(nextData);
 
         } else if (nextToken !== undefined) {
             // next token is empty, usually happens when the token has changed on server
             // filter empty cookies out
 
-            removeNextjsCookies();
+            removeNextjsTokenCookie();
         }
     }
 }
@@ -272,30 +279,52 @@ const proxy = function (req) {
         };
     }
 
-    initNextjsCookieName(req.mode, site);
+    initNextjsCookieName(req, site);
 
     return doRequest(req, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, 0);
 };
 
-function getNextjsCookies() {
-    return COOKIE_CACHE.get(COOKIE_KEY, () => undefined);
+function getNextjsDataCookie() {
+    return COOKIE_CACHE.get(COOKIE_DATA_KEY, () => undefined);
 }
 
-function setNextjsCookies(cookies) {
-    removeNextjsCookies(true);
-    log.debug(`Caching nextjs cookies [${COOKIE_KEY}]`);
-    return COOKIE_CACHE.get(COOKIE_KEY, () => cookies);
+function getNextjsTokenCookie() {
+    return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => undefined);
 }
 
-function initNextjsCookieName(requestMode, site) {
-    COOKIE_KEY = `NEXTJS_COOKIE_FOR_${requestMode}_OF_${site._name}`;
+function setNextjsDataCookie(data) {
+    removeNextjsDataCookie(true);
+    log.debug(`Caching nextjs data [${COOKIE_DATA_KEY}]`);
+    return COOKIE_CACHE.get(COOKIE_DATA_KEY, () => data);
 }
 
-function removeNextjsCookies(silent) {
+function setNextjsTokenCookie(token) {
+    removeNextjsTokenCookie(true);
+    log.debug(`Caching nextjs token [${COOKIE_TOKEN_KEY}] = ${token}`);
+    return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => token);
+}
+
+function initNextjsCookieName(request, site) {
+    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}`;
+    COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_AT_${site._name}`;
+}
+
+function removeNextjsDataCookie(silent) {
     if (!silent) {
-        log.debug(`Removing nextjs cookies [${COOKIE_KEY}]`);
+        log.debug(`Removing nextjs data [${COOKIE_DATA_KEY}]`);
     }
-    COOKIE_CACHE.remove(COOKIE_KEY);
+    COOKIE_CACHE.remove(COOKIE_DATA_KEY);
+}
+
+function removeNextjsTokenCookie(silent) {
+    if (!silent) {
+        log.debug(`Removing nextjs token [${COOKIE_TOKEN_KEY}]`);
+    }
+    COOKIE_CACHE.remove(COOKIE_TOKEN_KEY);
+}
+
+function getFromXPParam(req) {
+    return req.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE;
 }
 
 exports.get = proxy
