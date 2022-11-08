@@ -115,6 +115,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         [FROM_XP_PARAM]: getFromXPParam(originalReq),
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
         xpBaseUrl: xpSiteUrl,
+        jsessionid: originalReq.cookies['JSESSIONID']
     };
     if (hadNextCookies) {
         log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}] = ${nextjsToken} for: ${frontendUrl}`);
