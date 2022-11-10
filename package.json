@@ -1,7 +1,7 @@
 {
-    "name": "lib-frontend-proxy",
-    "version": "0.1.0-SNAPSHOT",
-    "description": "Allows XP to use external server for serverside-rendering content previews",
+    "name": "lib-nextjs",
+    "version": "0.11.0-SNAPSHOT",
+    "description": "Allows XP to use external server for server-side rendering of content preview",
     "main": "",
     "directories": {},
     "scripts": {
@@ -38,14 +38,9 @@
         "@babel/preset-env": "^7.20.2",
         "@babel/preset-react": "^7.18.6",
         "@babel/register": "^7.18.9",
-        "babel-eslint": "^10.1.0",
         "babel-loader": "^9.1.0",
         "babel-polyfill": "^6.26.0",
-        "eslint": "^8.27.0",
-        "lodash": "^4.17.21",
-        "mocha": "^10.1.0",
-        "webpack": "^5.74.0",
-        "webpack-cli": "^4.10.0"
+        "lodash": "^4.17.21"
     },
     "babel": {
         "presets": [
