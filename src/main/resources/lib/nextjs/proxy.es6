@@ -6,11 +6,12 @@ const {
     FROM_XP_PARAM,
     FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
-    COMPONENT_SUBPATH_HEADER,
+    COMPONENT_SUBPATH_HEADER, removeEndSlashPattern,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
 
+const NEXT_DATA_URL_PATTERN = '/_next/data';
 const NEXT_DATA = '__next_preview_data';
 const NEXT_TOKEN = '__prerender_bypass';
 const COOKIE_CACHE = cacheLib.newCache({
@@ -97,7 +98,17 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     let nextjsToken = getNextjsTokenCookie();
     const nextjsData = getNextjsDataCookie();
     const hadNextCookies = !!nextjsToken && !!nextjsData;
-    const frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, componentSubPath, siteConfig);
+    let frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, componentSubPath, siteConfig);
+
+    // When requesting /_next/data, the location is taken from url and will contain
+    // xp base url (i.e. /admin/site/next/inline/hmdb/page.json)
+    // that needs to be removed before sending to next server
+    // NB: frontpage will have no trailing slash so remove it first!
+    if (frontendUrl.contains(NEXT_DATA_URL_PATTERN)) {
+        const xpSiteUrlWithoutTrailingSlash = xpSiteUrl.replace(removeEndSlashPattern, '');
+        frontendUrl = frontendUrl.replace(xpSiteUrlWithoutTrailingSlash, '');
+    }
+
     if (!nextjsToken) {
         log.debug('No nextjs token cached, getting one at: ' + frontendUrl);
     } else if (!nextjsData) {
@@ -136,8 +147,8 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         method: originalReq.method,
         url: frontendUrl,
         // contentType: 'text/html',
-        connectionTimeout: 10000,
-        readTimeout: 10000,  // had to increase this to be able to run regexp replacing in postprocessing.es6
+        connectionTimeout: 30000,
+        readTimeout: 30000,
         headers,
         body: null, // JSON.stringify({ variables: {} }),
         followRedirects: false,  // we handle it manually to control headers

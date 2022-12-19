@@ -1,6 +1,6 @@
 const contentLib = require('/lib/xp/content');
 const contextLib = require('/lib/xp/context');
-const removeEndSlashPattern = /\/+$/;
+export const removeEndSlashPattern = /\/+$/;
 export const removeStartSlashPattern = /^\/+/;
 
 function getSiteConfigInContext(pathOrId) {
