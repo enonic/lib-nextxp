@@ -1,23 +1,58 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss) => {
-    // double slashes is the right way of escaping bracket!
-    const cssUrlPattern = new RegExp(`url\\([ \r\n\t]*(['"\`])?\/([^'"\`]*)['"\`]?[ \r\n\t]*\\)`, "g");
+import {getFrontendServerUrl, removeEndSlashPattern} from "./connection-config";
 
-    // Replace local absolute root URLs (e.g. "/_next/..., "/api/... etc)
-    const nextApiPattern = new RegExp(`(['"\`])([^'"\` \n\r\t]*\/)((?:_next(?!\/image?)\/|api\/)[^'"\` \n\r\t]*)['"\`]`, "g");
+const wSpaces = '[ \\r\\n\\t]*';
 
-    // Don't do next static urls replacement in css
-    const result = isCss ?
-        body :
-        body.replace(nextApiPattern, `$1${proxyUrlWithSlash}$3$1`);
+export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss, config) => {
+    let result;
+    if (!isCss) {
+        // Replace next static URLs (e.g. "/_next/..., "/api/... etc)
+        result = replaceNextApiUrls(body, proxyUrlWithSlash, config);
+    } else {
+        // Don't do next static urls replacement in css
+        result = body;
+    }
 
-    // But do css urls replacement for every file type
+    // Do css urls replacement for every file type
+    return replaceCssUrls(result, proxyUrlWithSlash);
+}
+
+const replaceCssUrls = (body, proxyUrlWithSlash) => {
+    // double slashes is the right way of escaping parentheses!
+    const cssUrlPattern = new RegExp(`url\\(${wSpaces}(['"\`])?\/([^'"\`]*)['"\`]?${wSpaces}\\)`, "g");
+
     // Replace CSS urls in the following format: url('</some/url>')>
     // Do this for JS and HTML files as well to support:
     // import "../styles.css" in JS
     // <style>.style {}</style> in HTML
     // (Quotes are optional because next doesn't use them in production mode)
-    return result.replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`);
+    return body.replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`)
+}
+
+const replaceNextApiUrls = (body, proxyUrlWithSlash, config) => {
+    const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(['"\`])([^'"\` \n\r\t]*\/)((?:_next\/(?!image)|api\/)[^'"\` \n\r\t]*)['"\`]`, "gmi");
+    const frontendServerUrl = getFrontendServerUrl(config);
+    // groups:
+    // 1 - url(
+    // 2 - "
+    // 3 - domain
+    // 4 - location
+    const replacerFn = (substring, g1, g2, g3, g4) => {
+        return `${g2}${buildFullUrl(substring, !!g1, g3, g4, frontendServerUrl, proxyUrlWithSlash)}${g2}`;
+    };
+    return body.replace(nextApiPattern, replacerFn);
+}
+
+const buildFullUrl = (substring, isUrlConstructor, linkDomain, linkLocation, frontendDomain, proxyUrlWithSlash) => {
+    let result;
+    if (isUrlConstructor || linkDomain.replace(removeEndSlashPattern, '') === frontendDomain) {
+        // keep the link, as it is an url constructor (can't be relative) or has absolute direct url to frontend
+        result = linkDomain;
+    } else {
+        result = proxyUrlWithSlash;
+    }
+
+    return result + linkLocation;
 }
 
 
