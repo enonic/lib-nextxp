@@ -153,22 +153,22 @@ export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, compo
         } else if (componentSubPath) {
             return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
         } else {
-            return `${frontendServerUrl}/${reqPath}${serializeParams(req.params)}`;
+            return `${frontendServerUrl}/${reqPath}?${serializeParams(req.params)}`;
         }
     } else {
         const token = encodeURIComponent(getFrontendServerToken(config));
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}`
+        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}&${serializeParams(req.params)}`
     }
 }
 
-function serializeParams(params) {
+export function serializeParams(params) {
     let paramsString;
     const keys = Object.keys(params);
     if (keys.length > 0) {
-        paramsString = '?' + keys
+        paramsString = keys
             .map(key => `${key}=${encodeURIComponent(params[key])}`)
             .join('&');
     }

@@ -9,13 +9,13 @@ const {
     COMPONENT_SUBPATH_HEADER, removeEndSlashPattern,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
-const {relayUriParams, parseFrontendRequestPath} = require("./parsing");
+const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
 
 const NEXT_DATA_URL_PATTERN = '/_next/data';
 const NEXT_DATA = '__next_preview_data';
 const NEXT_TOKEN = '__prerender_bypass';
 const COOKIE_CACHE = cacheLib.newCache({
-    size: 300,   // good enough for 100 sites with 3 render modes per site
+    size: 900,   // good enough for 100 sites with 3 render modes per site and 3 sets of query params per page
     expire: 3600,
 });
 const ALLOWED_RESPONSE_HEADERS = [
@@ -159,7 +159,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     try {
         const response = httpClientLib.request(proxyRequest);
 
-        processNextjsSetCookieHeader(response, frontendUrl);
+        processNextjsSetCookieHeader(response);
 
         nextjsToken = getNextjsTokenCookie();
 
@@ -244,7 +244,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     }
 }
 
-function processNextjsSetCookieHeader(response, frontendUrl) {
+function processNextjsSetCookieHeader(response) {
     const cookieArray = response.headers['set-cookie'];
 
     if (cookieArray?.length > 0) {
@@ -317,7 +317,9 @@ function setNextjsTokenCookie(token) {
 }
 
 function initNextjsCookieName(request, site) {
-    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}`;
+    const params = serializeParams(request.params);
+    // create separate data for different params too
+    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}_WITH_${params}`;
     COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_AT_${site._name}`;
 }
 
