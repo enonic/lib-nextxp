@@ -153,18 +153,32 @@ export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, compo
         } else if (componentSubPath) {
             return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
         } else {
-            return `${frontendServerUrl}/${reqPath}?${serializeParams(req.params)}`;
+            return `${frontendServerUrl}${reqPath.length ? '/' + reqPath : ''}${serializeParams(req.params, '?')}`;
         }
     } else {
         const token = encodeURIComponent(getFrontendServerToken(config));
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}&${serializeParams(req.params)}`
+        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}${serializeParams(req.params, '&')}`
     }
 }
 
-export function serializeParams(params) {
+export function parseUrl(url) {
+    const urlRegex = new RegExp('((?:https?:\/\/)?[a-zA-Z0-9_.:-]+)([a-zA-Z0-9_.\/-]{2,})?');
+    const result = urlRegex.exec(url);
+    const basePath = result[2];
+    const basePathBuster = basePath && basePath.split('/').reduce((prev, curr) => {
+        return prev + (curr?.length ? '/..' : '')
+    }, '');
+    return {
+        domain: result[1],
+        basePath,
+        basePathBuster,
+    };
+}
+
+export function serializeParams(params, prefix) {
     let paramsString;
     const keys = Object.keys(params);
     if (keys.length > 0) {
@@ -172,6 +186,6 @@ export function serializeParams(params) {
             .map(key => `${key}=${encodeURIComponent(params[key])}`)
             .join('&');
     }
-    return paramsString || '';
+    return paramsString ? (prefix ?? '') + paramsString : '';
 }
 
