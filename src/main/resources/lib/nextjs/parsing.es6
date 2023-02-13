@@ -1,6 +1,6 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerToken, getFrontendServerUrl, removeStartSlashPattern} from "./connection-config";
+import {getFrontendServerToken, getFrontendServerUrl} from "./connection-config";
 
 /**
  * Parses the site-relative path by CONTENT data:
@@ -57,8 +57,8 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
                 siteRelativeReqPath = siteRelativeContentPath;
 
             } else if (req.path.startsWith(`${editRootUrl}${content._id}/_/component/`)) {
-                siteRelativeReqPath = siteRelativeContentPath;
                 componentSubPath = req.path.substring(`${editRootUrl}${content._id}/_/component`.length);
+                siteRelativeReqPath = siteRelativeContentPath + '/_/component' + componentSubPath;
 
             } else {
                 throw Error("req.path " + JSON.stringify(req.path) + " not recognized with _path or _id.");
@@ -81,10 +81,8 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
 
 const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
     if (isContentItem) {
-        const contentPathArr = contentPath.split('/');
-        return contentPathArr
-            .slice((!contentPathArr[0]) ? 2 : 1)
-            .join("/");
+        // strip the site name that comes first
+        return contentPath.replace(/^\/?[0-9a-zA-Z._-]+/, '');
     } else {
         return nonContentPath || '';
     }
@@ -108,7 +106,9 @@ const getFrontendRequestPath = (isContentItem, nonContentPath, contentPath) => {
  *          frontendRequestPath: frontendserver-relative path to pass on through the proxy: whatever path to a page (xp-content or not), frontend asset etc., that the proxy should request.
  *          error: HTTP status error code.
  */
-export const parseFrontendRequestPath = (req, site, content) => {
+export const parseFrontendRequestPath = (req, site) => {
+
+    const content = portalLib.getContent() || {};
 
     const xpSiteUrl = portalLib.pageUrl({
         path: site._path,
@@ -140,27 +140,25 @@ export const parseFrontendRequestPath = (req, site, content) => {
 }
 
 
-export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, componentSubPath, config) => {
-    let reqPath = frontendRequestPath?.length ? frontendRequestPath.replace(removeStartSlashPattern, '') : '';
-
+export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, config) => {
     const frontendServerUrl = getFrontendServerUrl(config);
 
     if (hasNextjsCookies) {
         // TODO: need a more secure way of detecting isRenderable request
         const isRenderableRequest = req.method === 'HEAD' && req.params['mode'] !== undefined;
         if (isRenderableRequest) {
-            return `${frontendServerUrl}/_renderable?contentPath=${encodeURIComponent(reqPath)}`;
-        } else if (componentSubPath) {
-            return `${frontendServerUrl}/_component?contentPath=${encodeURIComponent(reqPath)}`;
+            return `${frontendServerUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
         } else {
-            return `${frontendServerUrl}${reqPath.length ? '/' + reqPath : ''}${serializeParams(req.params, '?')}`;
+            return `${frontendServerUrl}${frontendRequestPath}${serializeParams(req.params, '?')}`;
         }
     } else {
         const token = encodeURIComponent(getFrontendServerToken(config));
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent('/' + reqPath)}${serializeParams(req.params, '&')}`
+        const parsedUrl = parseUrl(frontendServerUrl);
+        const reqPath = (parsedUrl.basePath ?? '') + frontendRequestPath;
+        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent(reqPath)}${serializeParams(req.params, '&')}`
     }
 }
 
@@ -168,9 +166,9 @@ export function parseUrl(url) {
     const urlRegex = new RegExp('((?:https?:\/\/)?[a-zA-Z0-9_.:-]+)([a-zA-Z0-9_.\/-]{2,})?');
     const result = urlRegex.exec(url);
     const basePath = result[2];
-    const basePathBuster = basePath && basePath.split('/').reduce((prev, curr) => {
-        return prev + (curr?.length ? '/..' : '')
-    }, '');
+    const basePathBuster = basePath &&
+        basePath.split('/')
+            .reduce((prev, curr) => prev + (curr?.length ? '/..' : ''), '');
     return {
         domain: result[1],
         basePath,

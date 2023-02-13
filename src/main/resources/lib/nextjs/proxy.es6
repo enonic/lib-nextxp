@@ -98,7 +98,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     let nextjsToken = getNextjsTokenCookie();
     const nextjsData = getNextjsDataCookie();
     const hadNextCookies = !!nextjsToken && !!nextjsData;
-    let frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, componentSubPath, siteConfig);
+    let frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, siteConfig);
 
     // When requesting /_next/data, the location is taken from url and will contain
     // xp base url (i.e. /admin/site/next/inline/hmdb/page.json)
@@ -114,14 +114,6 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
     } else if (!nextjsData) {
         log.debug('Nextjs token is present, but there is no data for ' + originalReq.mode + ' mode cached, so getting one at: ' + frontendUrl);
     }
-    let renderSingleComponent = false;
-
-    if (counter >= 10) {
-        const message = 'Request recursion limit exceeded: ' + counter;
-        log.error(message);
-        return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
-    }
-
     const headers = {
         [FROM_XP_PARAM]: getFromXPParam(originalReq),
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
@@ -132,6 +124,8 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}] = ${nextjsToken} for: ${frontendUrl}`);
         headers['cookie'] = `${NEXT_TOKEN}=${nextjsToken}; ${NEXT_DATA}=${nextjsData}`;
     }
+
+    let renderSingleComponent = false;
     if (componentSubPath) {
         headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
 
@@ -141,6 +135,12 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.COMPONENT;
             renderSingleComponent = true;
         }
+    }
+
+    if (counter >= 10) {
+        const message = 'Request recursion limit exceeded: ' + counter;
+        log.error(message);
+        return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
     }
 
     const proxyRequest = {
@@ -280,10 +280,9 @@ const proxy = function (req) {
     }
 
     const site = portalLib.getSite();
-    const content = portalLib.getContent() || {};
     const siteConfig = portalLib.getSiteConfig();
 
-    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site, content);
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
 
     if (error) {
         return {
@@ -317,9 +316,17 @@ function setNextjsTokenCookie(token) {
 }
 
 function initNextjsCookieName(request, site) {
-    const params = serializeParams(request.params);
+    let paramString;
+    if (request.params) {
+        const params = Object.create(request.params);
+        // don't save nextjs cache buster because we will have to ask for new preview token every time
+        delete params['ts'];
+        paramString = serializeParams(params);
+    } else {
+        paramString = '';
+    }
     // create separate data for different params too
-    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}_WITH_${params}`;
+    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}_WITH_${paramString}`;
     COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_AT_${site._name}`;
 }
 

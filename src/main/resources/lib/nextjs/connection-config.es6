@@ -21,7 +21,7 @@ export function getSiteConfig(pathOrId, repoId) {
                 return getSiteConfigInContext(pathOrId);
             });
         } catch (e) {
-            log.info('Error: ' + e.message);
+            log.error('Failed to get site config: ' + e.message);
         }
     } else {
         return getSiteConfigInContext(pathOrId);
