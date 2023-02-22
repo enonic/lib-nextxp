@@ -58,7 +58,8 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
 
             } else if (req.path.startsWith(`${editRootUrl}${content._id}/_/component/`)) {
                 componentSubPath = req.path.substring(`${editRootUrl}${content._id}/_/component`.length);
-                siteRelativeReqPath = siteRelativeContentPath + '/_/component' + componentSubPath;
+                const rootEscapedContentPath = siteRelativeContentPath !== '/' ? siteRelativeContentPath : '';
+                siteRelativeReqPath = rootEscapedContentPath + '/_/component' + componentSubPath;
 
             } else {
                 throw Error("req.path " + JSON.stringify(req.path) + " not recognized with _path or _id.");
