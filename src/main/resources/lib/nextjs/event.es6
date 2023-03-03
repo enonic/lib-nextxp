@@ -42,11 +42,10 @@ function queryNextjsRepos() {
 
 function refreshNextjsRepos() {
     // clear list of repos
-    while (REPOS.length) {
-        REPOS.pop();
-    }
+    REPOS.length = 0;
     // load it with actual data
     REPOS.push(...queryNextjsRepos());
+
     log.debug(`Updated content event repos: [${REPOS}]`);
 }
 
@@ -115,20 +114,19 @@ function sendRevalidateRequest(contentPath, config) {
     log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
     const response = httpClientLib.request({
         method: 'GET',
-        url: getFrontendServerUrl(config) + '/api/revalidate',
+        url: getFrontendServerUrl(config) + '/_/enonic/cache/purge',
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
         queryParams: {
             path: contentPath,
-            revalidateAll: contentPath === null,
             token: getFrontendServerToken(config),
         },
         followRedirects: false,
     });
     if (response.status !== 200) {
-        log.warning(`Revalidation of '${contentPath}' status: ${response.status}`);
+        log.warning(`Revalidation of '${contentPath ?? 'everything'}' status: ${response.status}`);
     } else {
-        log.debug(`Revalidation of [${contentPath}] done`);
+        log.debug(`Revalidation of [${contentPath ?? 'everything'}] done`);
     }
 }
