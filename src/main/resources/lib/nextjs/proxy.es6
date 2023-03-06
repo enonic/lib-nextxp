@@ -3,10 +3,8 @@ const portalLib = require('/lib/xp/portal');
 const cacheLib = require('/lib/cache');
 
 const {
-    FROM_XP_PARAM,
-    FROM_XP_PARAM_VALUES,
     XP_RENDER_MODE_HEADER,
-    COMPONENT_SUBPATH_HEADER, removeEndSlashPattern,
+    removeEndSlashPattern,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
@@ -115,27 +113,16 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         log.debug('Nextjs token is present, but there is no data for ' + originalReq.mode + ' mode cached, so getting one at: ' + frontendUrl);
     }
     const headers = {
-        [FROM_XP_PARAM]: getFromXPParam(originalReq),
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
         xpBaseUrl: xpSiteUrl,
-        jsessionid: originalReq.cookies['JSESSIONID']
+        jsessionid: getJSessionId(originalReq),
     };
     if (hadNextCookies) {
         log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}] = ${nextjsToken} for: ${frontendUrl}`);
         headers['cookie'] = `${NEXT_TOKEN}=${nextjsToken}; ${NEXT_DATA}=${nextjsData}`;
     }
 
-    let renderSingleComponent = false;
-    if (componentSubPath) {
-        headers[COMPONENT_SUBPATH_HEADER] = componentSubPath;
-
-        // If a component path has been parsed from the URL, it's most likely a single-component render request during update in edit mode.
-        // Set the header to 'component' to signify that, except if it's the page at the root of the component tree.
-        if (componentSubPath !== '' && componentSubPath !== '/') {
-            headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.COMPONENT;
-            renderSingleComponent = true;
-        }
-    }
+    let renderSingleComponent = componentSubPath && componentSubPath !== '' && componentSubPath !== '/';
 
     if (counter >= 10) {
         const message = 'Request recursion limit exceeded: ' + counter;
@@ -295,6 +282,10 @@ const proxy = function (req) {
     return doRequest(req, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, 0);
 };
 
+const getJSessionId = function (req) {
+    return req?.cookies['JSESSIONID'];
+}
+
 function getNextjsDataCookie() {
     return COOKIE_CACHE.get(COOKIE_DATA_KEY, () => undefined);
 }
@@ -326,7 +317,7 @@ function initNextjsCookieName(request, site) {
         paramString = '';
     }
     // create separate data for different params too
-    COOKIE_DATA_KEY = `NEXTJS_DATA_FOR_${request.mode}_AT_${site._name}_WITH_${paramString}`;
+    COOKIE_DATA_KEY = `NEXTJS_DATA_BY_${getJSessionId(request)}_FOR_${request.mode}_AT_${site._name}_WITH_${paramString}`;
     COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_AT_${site._name}`;
 }
 
@@ -344,17 +335,12 @@ function removeNextjsTokenCookie(silent) {
     COOKIE_CACHE.remove(COOKIE_TOKEN_KEY);
 }
 
-function getFromXPParam(req) {
-    return req.headers[FROM_XP_PARAM] || FROM_XP_PARAM_VALUES.TYPE;
-}
-
 exports.get = proxy
 
 exports.handleError = proxy;
 
 exports.getPage = function (req) {
     req.headers = req.headers || {};
-    req.headers[FROM_XP_PARAM] = FROM_XP_PARAM_VALUES.PAGE;
 
     return proxy(req);
 }
