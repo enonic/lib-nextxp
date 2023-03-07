@@ -1,8 +1,9 @@
-import {getSiteConfig} from "./connection-config";
+import {getSite} from "./connection-config";
 
 const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
 const projectLib = require('/lib/xp/project');
+const portalLib = require('/lib/xp/portal');
 const nodeLib = require('/lib/xp/node');
 const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
 
@@ -94,9 +95,9 @@ function subscribeToNodeEvents() {
 }
 
 function sendRevalidateAll(nodeId, nodePath, repoId) {
-    const config = getSiteConfig(nodeId, repoId);
+    const site = getSite(nodeId, repoId);
 
-    sendRevalidateRequest(null, config);
+    sendRevalidateRequest(null, site);
 }
 
 function sendRevalidateNode(nodeId, nodePath, repoId) {
@@ -105,22 +106,23 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
         contentPath = '/';
     }
 
-    const config = getSiteConfig(nodeId, repoId)
+    const site = getSite(nodeId, repoId);
 
-    sendRevalidateRequest(contentPath, config);
+    sendRevalidateRequest(contentPath, site);
 }
 
-function sendRevalidateRequest(contentPath, config) {
+function sendRevalidateRequest(contentPath, site) {
     log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
+
     const response = httpClientLib.request({
         method: 'GET',
-        url: getFrontendServerUrl(config) + '/_/enonic/cache/purge',
+        url: getFrontendServerUrl(site) + '/_/enonic/cache/purge',
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
         queryParams: {
             path: contentPath,
-            token: getFrontendServerToken(config),
+            token: getFrontendServerToken(site),
         },
         followRedirects: false,
     });

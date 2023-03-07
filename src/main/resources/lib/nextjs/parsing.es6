@@ -1,7 +1,5 @@
 const portalLib = require('/lib/xp/portal');
 
-import {getFrontendServerToken, getFrontendServerUrl} from "./connection-config";
-
 /**
  * Parses the site-relative path by CONTENT data:
  * current XP content path relative to the root site it appears to be below - naively based on the content._path string.
@@ -141,25 +139,31 @@ export const parseFrontendRequestPath = (req, site) => {
 }
 
 
-export const relayUriParams = (req, frontendRequestPath, hasNextjsCookies, config) => {
-    const frontendServerUrl = getFrontendServerUrl(config);
+export const relayUriParams = (requestContext, hasNextjsCookies) => {
+
+    const {
+        request,
+        frontendRequestPath,
+        nextjsUrl,
+        nextjsSecret,
+    } = requestContext;
 
     if (hasNextjsCookies) {
         // TODO: need a more secure way of detecting isRenderable request
-        const isRenderableRequest = req.method === 'HEAD' && req.params['mode'] !== undefined;
+        const isRenderableRequest = request.method === 'HEAD' && request.params['mode'] !== undefined;
         if (isRenderableRequest) {
-            return `${frontendServerUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
+            return `${nextjsUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
         } else {
-            return `${frontendServerUrl}${frontendRequestPath}${serializeParams(req.params, '?')}`;
+            return `${nextjsUrl}${frontendRequestPath}${serializeParams(request.params, '?')}`;
         }
     } else {
-        const token = encodeURIComponent(getFrontendServerToken(config));
+        const token = encodeURIComponent(nextjsSecret);
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        const parsedUrl = parseUrl(frontendServerUrl);
+        const parsedUrl = parseUrl(nextjsUrl);
         const reqPath = (parsedUrl.basePath ?? '') + frontendRequestPath;
-        return `${frontendServerUrl}/api/preview?token=${token}&path=${encodeURIComponent(reqPath)}${serializeParams(req.params, '&')}`
+        return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(reqPath)}${serializeParams(request.params, '&')}`
     }
 }
 
