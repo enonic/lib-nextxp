@@ -5,6 +5,8 @@ const cacheLib = require('/lib/cache');
 const {
     XP_RENDER_MODE_HEADER,
     removeEndSlashPattern,
+    getFrontendServerUrl,
+    getFrontendServerToken,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
@@ -91,12 +93,19 @@ function okResponse(libHttpResponse) {
     }
 }
 
-function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, counter) {
+function doRequest(requestContext, counter) {
+
+    const {
+        request: originalReq,
+        xpSiteUrl,
+        componentSubPath,
+        nextjsUrl,
+    } = requestContext;
 
     let nextjsToken = getNextjsTokenCookie();
     const nextjsData = getNextjsDataCookie();
     const hadNextCookies = !!nextjsToken && !!nextjsData;
-    let frontendUrl = relayUriParams(originalReq, frontendRequestPath, hadNextCookies, siteConfig);
+    let frontendUrl = relayUriParams(requestContext, hadNextCookies);
 
     // When requesting /_next/data, the location is taken from url and will contain
     // xp base url (i.e. /admin/site/next/inline/hmdb/page.json)
@@ -176,7 +185,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             // so we do it manually instead of followRedirect: true
             log.debug(`Following redirect to: ${response.headers['location']}`);
 
-            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
+            return doRequest(requestContext, ++counter);
         }
 
         const isVercelPrerender = response.headers['x-vercel-cache'] === 'PRERENDER';
@@ -196,7 +205,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
             // make a new preview request to get new nextjs cookies
             log.debug(`Renewing nextjs cookies [${COOKIE_DATA_KEY}] at: ${frontendUrl}`);
 
-            return doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, ++counter);
+            return doRequest(requestContext, ++counter);
         }
 
         //TODO: workaround for XP pattern controller mapping not picked up in edit mode
@@ -210,7 +219,7 @@ function doRequest(originalReq, frontendRequestPath, xpSiteUrl, componentSubPath
         }
 
         if (response.body && (isHtml || isJs || isCss)) {
-            response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode, isCss, siteConfig);
+            response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode, isCss, nextjsUrl);
         }
 
         response.postProcess = isHtml
@@ -267,7 +276,9 @@ const proxy = function (req) {
     }
 
     const site = portalLib.getSite();
-    const siteConfig = portalLib.getSiteConfig();
+
+    const nextjsUrl = getFrontendServerUrl(site);
+    const nextjsSecret = getFrontendServerToken(site);
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
 
@@ -279,7 +290,16 @@ const proxy = function (req) {
 
     initNextjsCookieName(req, site);
 
-    return doRequest(req, frontendRequestPath, xpSiteUrl, componentSubPath, siteConfig, 0);
+    const requestContext = {
+        request: req,
+        frontendRequestPath,
+        xpSiteUrl,
+        componentSubPath,
+        nextjsUrl,
+        nextjsSecret,
+    }
+
+    return doRequest(requestContext, 0);
 };
 
 const getJSessionId = function (req) {

@@ -1,16 +1,16 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-import {getFrontendServerUrl, removeEndSlashPattern} from "./connection-config";
+import {removeEndSlashPattern} from "./connection-config";
 import {parseUrl} from "./parsing";
 
 const wSpaces = '[ \\r\\n\\t]*';
 const alphaNum = 'a-zA-Z0-9_\\.\\-';
 const quotes = `['"\\\`]`
 
-export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss, config) => {
+export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss, nextjsUrl) => {
     let result;
     if (!isCss) {
         // Replace next static URLs (e.g. "/_next/..., "/api/... etc)
-        result = replaceNextApiUrls(body, proxyUrlWithSlash, config);
+        result = replaceNextApiUrls(body, proxyUrlWithSlash, nextjsUrl);
     } else {
         // Don't do next static urls replacement in css
         result = body;
@@ -32,33 +32,32 @@ const replaceCssUrls = (body, proxyUrlWithSlash) => {
     return body.replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`)
 }
 
-const replaceNextApiUrls = (body, proxyUrlWithSlash, config) => {
+const replaceNextApiUrls = (body, proxyUrlWithSlash, nextjsUrl) => {
     const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:_next(?!\/image)|api)[^'"\`]+)${quotes}`, "gmi");
 
-    const frontendServerUrl = getFrontendServerUrl(config);
-    const parsedFrontendUrl = parseUrl(frontendServerUrl);
+    const parsedNextjsUrl = parseUrl(nextjsUrl);
     const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(removeEndSlashPattern, '');
 
     return body.replace(nextApiPattern, (match, url, quotes, domain, basePath, location) => {
-        return buildFullUrl(match, !!url, quotes, domain, basePath, location, parsedFrontendUrl, proxyUrlWithoutSlash);
+        return buildFullUrl(match, !!url, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash);
     });
 }
 
 
-const buildFullUrl = (match, isUrlConstructor, quotes, domain, basePath, location, parsedFrontendUrl, proxyUrlWithoutSlash) => {
+const buildFullUrl = (match, isUrlConstructor, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash) => {
     let result;
-    let isAbsoluteFrontendUrl = domain === parsedFrontendUrl.domain;
+    let isAbsoluteFrontendUrl = domain === parsedNextjsUrl.domain;
     if (isUrlConstructor || isAbsoluteFrontendUrl) {
         // keep the link, as it is an url constructor (can't be relative) or has absolute url to frontend
         result = domain + (isAbsoluteFrontendUrl && basePath ? basePath : '');
     } else {
         result = proxyUrlWithoutSlash;
     }
-    if (parsedFrontendUrl.basePath?.length && !basePath?.length) {
+    if (parsedNextjsUrl.basePath?.length && !basePath?.length) {
         // basePath is configured, but not present in the link
         // that means it will be added by nextjs in runtime,
         // so put a basePathBuster because xp doesn't need to have a basePath
-        result = parsedFrontendUrl.basePathBuster + result
+        result = parsedNextjsUrl.basePathBuster + result
     }
     return `${quotes}${result + location}${quotes}`;
 }
