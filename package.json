@@ -1,6 +1,6 @@
 {
     "name": "lib-nextjs",
-    "version": "0.11.0-SNAPSHOT",
+    "version": "1.0.0",
     "description": "Allows XP to use external server for server-side rendering of content preview",
     "main": "",
     "directories": {},
