@@ -2,7 +2,7 @@ const contentLib = require('/lib/xp/content');
 const contextLib = require('/lib/xp/context');
 export const removeEndSlashPattern = /\/+$/;
 
-const APP_NEXTJS_NAME = 'com.enonic.app.nextjs';
+const APP_NEXTXP_NAME = 'com.enonic.app.nextxp';
 
 function getSiteInContext(pathOrId) {
     return contentLib.getSite({
@@ -33,7 +33,7 @@ exports.getFrontendServerUrl = (site) => {
     const projectName = getProjectName();
     const siteName = site?._name;
     let url;
-    if (app.name === APP_NEXTJS_NAME) {
+    if (app.name === APP_NEXTXP_NAME) {
         // check the app-nextjs config for project and site
         url = app?.config?.[`settings.${projectName}.${siteName}.url`];
     }
@@ -53,7 +53,7 @@ exports.getFrontendServerToken = (site) => {
     const siteName = site?._name;
 
     let token;
-    if (app.name === APP_NEXTJS_NAME) {
+    if (app.name === APP_NEXTXP_NAME) {
         // check the app-nextjs config for project and site
         token = app?.config?.[`settings.${projectName}.${siteName}.secret`];
     }
