@@ -1,6 +1,6 @@
 const contentLib = require('/lib/xp/content');
 const contextLib = require('/lib/xp/context');
-export const removeEndSlashPattern = /\/+$/;
+export const trailingSlashPattern = /\/*$/;
 
 function getSiteInContext(pathOrId) {
     return contentLib.getSite({
@@ -41,7 +41,7 @@ exports.getFrontendServerUrl = (site) => {
         // finally try reading the site config
         url = getConfigFromSite(site)?.nextjsUrl || "http://localhost:3000";
     }
-    return url.replace(removeEndSlashPattern, '');
+    return url.replace(trailingSlashPattern, '');
 }
 
 exports.getFrontendServerToken = (site) => {
