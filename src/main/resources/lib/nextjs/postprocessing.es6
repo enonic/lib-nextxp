@@ -1,5 +1,5 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-import {removeEndSlashPattern} from "./connection-config";
+import {trailingSlashPattern} from "./connection-config";
 import {parseUrl} from "./parsing";
 
 const wSpaces = '[ \\r\\n\\t]*';
@@ -36,7 +36,7 @@ const replaceNextApiUrls = (body, proxyUrlWithSlash, nextjsUrl) => {
     const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:_next(?!\/image)|api)[^'"\`]+)${quotes}`, "gmi");
 
     const parsedNextjsUrl = parseUrl(nextjsUrl);
-    const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(removeEndSlashPattern, '');
+    const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(trailingSlashPattern, '');
 
     return body.replace(nextApiPattern, (match, url, quotes, domain, basePath, location) => {
         return buildFullUrl(match, !!url, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash);

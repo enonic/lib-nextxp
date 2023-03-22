@@ -4,7 +4,7 @@ const cacheLib = require('/lib/cache');
 
 const {
     XP_RENDER_MODE_HEADER,
-    removeEndSlashPattern,
+    trailingSlashPattern,
     getFrontendServerUrl,
     getFrontendServerToken,
 } = require('./connection-config');
@@ -112,7 +112,7 @@ function doRequest(requestContext, counter) {
     // that needs to be removed before sending to next server
     // NB: frontpage will have no trailing slash so remove it first!
     if (frontendUrl.contains(NEXT_DATA_URL_PATTERN)) {
-        const xpSiteUrlWithoutTrailingSlash = xpSiteUrl.replace(removeEndSlashPattern, '');
+        const xpSiteUrlWithoutTrailingSlash = xpSiteUrl.replace(trailingSlashPattern, '');
         frontendUrl = frontendUrl.replace(xpSiteUrlWithoutTrailingSlash, '');
     }
 

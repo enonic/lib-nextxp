@@ -1,6 +1,6 @@
 const contentLib = require('/lib/xp/content');
 const contextLib = require('/lib/xp/context');
-export const removeEndSlashPattern = /\/+$/;
+export const trailingSlashPattern = /\/*$/;
 
 const APP_NEXTJS_NAME = 'com.enonic.app.nextjs';
 
@@ -45,7 +45,7 @@ exports.getFrontendServerUrl = (site) => {
         // read site config next
         url = getConfigFromSite(site)?.nextjsUrl || "http://localhost:3000";
     }
-    return url.replace(removeEndSlashPattern, '');
+    return url.replace(trailingSlashPattern, '');
 }
 
 exports.getFrontendServerToken = (site) => {
