@@ -2,8 +2,6 @@ const contentLib = require('/lib/xp/content');
 const contextLib = require('/lib/xp/context');
 export const removeEndSlashPattern = /\/+$/;
 
-const APP_NEXTXP_NAME = 'com.enonic.app.nextxp';
-
 function getSiteInContext(pathOrId) {
     return contentLib.getSite({
         key: pathOrId || '/',
@@ -32,17 +30,15 @@ export function getSite(pathOrId, repoId) {
 exports.getFrontendServerUrl = (site) => {
     const projectName = getProjectName();
     const siteName = site?._name;
-    let url;
-    if (app.name === APP_NEXTXP_NAME) {
-        // check the app-nextjs config for project and site
-        url = app?.config?.[`settings.${projectName}.${siteName}.url`];
-    }
+
+    // check if the app is used to configure multiple sites
+    let url = app?.config?.[`nextjs.${projectName}.${siteName}.url`];
     if (!url) {
-        // fall back to third-party app using lib-nextjs config file
+        // fall back to the single app config
         url = app?.config?.['nextjs.url'];
     }
     if (!url) {
-        // read site config next
+        // finally try reading the site config
         url = getConfigFromSite(site)?.nextjsUrl || "http://localhost:3000";
     }
     return url.replace(removeEndSlashPattern, '');
@@ -52,17 +48,14 @@ exports.getFrontendServerToken = (site) => {
     const projectName = getProjectName();
     const siteName = site?._name;
 
-    let token;
-    if (app.name === APP_NEXTXP_NAME) {
-        // check the app-nextjs config for project and site
-        token = app?.config?.[`settings.${projectName}.${siteName}.secret`];
-    }
+    // check if the app is used to configure multiple sites
+    let token = app?.config?.[`nextjs.${projectName}.${siteName}.secret`];
     if (!token) {
-        // fall back to third-party app using lib-nextjs config file
+        // fall back to the single app config
         token = app?.config?.['nextjs.secret'];
     }
     if (!token) {
-        // read site config last
+        // finally try reading the site config
         token = getConfigFromSite(site)?.nextjsToken;
     }
     return token;
