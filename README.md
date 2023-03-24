@@ -1,4 +1,4 @@
-# lib-nextjs
+# trailingSlashPatternjs
 
 XP-side proxy that can relay rendering to an external server (using it to render the frontend preview of a content item
 in content studio).
@@ -18,7 +18,7 @@ content studio.
 
     ```groovy
     dependencies {
-        include 'com.enonic.lib:lib-nextjs:<version>'
+        include 'com.enonic.lib:lib-nextxp:<version>'
     }
     ```
 
@@ -89,5 +89,5 @@ _Changes to this file are applied immediately!_
 <a id="issues"></a>
 ## Issues:
 
-https://github.com/enonic/lib-nextjs/issues/
+https://github.com/enonic/lib-nextxp/issues/
 
