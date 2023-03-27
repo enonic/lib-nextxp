@@ -17,10 +17,12 @@ const getSiteRelativeContentPath = (contentPath = "", sitePath) => {
     if (!contentPath.startsWith(sitePath)) {
         return contentPath
     }
-    return contentPath.substring(sitePath.length)
+    const siteRelativeContentPath = contentPath.substring(sitePath.length)
         // Normalizing for variations in input and vhost: always start with a slash, never end with one (unless root)
         .replace(trailingSlashPattern, '')
         .replace(/^\/*/, '/');
+
+    return siteRelativeContentPath !== '/' ? siteRelativeContentPath : '';
 }
 
 
@@ -57,8 +59,7 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
 
             } else if (req.path.startsWith(`${editRootUrl}${content._id}/_/component/`)) {
                 componentSubPath = req.path.substring(`${editRootUrl}${content._id}/_/component`.length);
-                const rootEscapedContentPath = siteRelativeContentPath !== '/' ? siteRelativeContentPath : '';
-                siteRelativeReqPath = rootEscapedContentPath + '/_/component' + componentSubPath;
+                siteRelativeReqPath = siteRelativeContentPath + '/_/component' + componentSubPath;
 
             } else {
                 throw Error("req.path " + JSON.stringify(req.path) + " not recognized with _path or _id.");
