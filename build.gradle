@@ -17,7 +17,7 @@ dependencies {
     compile "com.enonic.xp:lib-node:${xpVersion}"
     compile "com.enonic.xp:lib-context:${xpVersion}"
     compile "com.enonic.lib:lib-cache:2.2.0"
-    compile "com.enonic.lib:lib-http-client:3.2.1"
+    compile "com.enonic.lib:lib-http-client:3.2.2"
 
     //compile "com.enonic.xp:lib-io:${xpVersion}"
     // compile "com.enonic.xp:lib-repo:${xpVersion}"
