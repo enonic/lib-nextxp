@@ -57,7 +57,8 @@ To configure this, you can add/modify a config file named same as your XP applic
 the following line to `<xp-home>/config` folder:
 
    ```properties
-    nextjsUrl=http://localhost:1234
+nextjs.url=http://localhost:1234
+nextjs.secret=mySecret
    ```
 
 _Changes to this file are applied immediately!_
