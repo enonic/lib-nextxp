@@ -3,7 +3,7 @@ import {getSite} from "./connection-config";
 const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
 const projectLib = require('/lib/xp/project');
-const portalLib = require('/lib/xp/portal');
+const contextLib = require('/lib/xp/context');
 const nodeLib = require('/lib/xp/node');
 const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
 
@@ -21,6 +21,23 @@ export function subscribe() {
 }
 
 function queryNextjsRepos() {
+    const currentContext = contextLib.get();
+    if (currentContext.authInfo.principals.indexOf('role:system.admin') < 0) {
+        try {
+            return contextLib.run({
+                principals: ["role:system.admin"]
+            }, function () {
+                return queryNextjsReposInContext();
+            });
+        } catch (e) {
+            log.error('Failed to query nextjs repos: ' + e.message);
+        }
+    } else {
+        return queryNextjsReposInContext();
+    }
+}
+
+function queryNextjsReposInContext() {
     const sources = projectLib.list().map(repo => ({
         repoId: `com.enonic.cms.${repo.id}`,
         branch: "master",
@@ -32,8 +49,11 @@ function queryNextjsRepos() {
         count: 999,
         query: "type = 'portal:site'",
         filters: {
-            exists: {
-                field: "data.siteConfig.config.nextjsToken",
+            hasValue: {
+                "field": "data.siteConfig.applicationKey",
+                "values": [
+                    app.name,
+                ]
             }
         }
     });
