@@ -97,7 +97,7 @@ function subscribeToNodeEvents() {
 function sendRevalidateAll(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
-    sendRevalidateRequest(null, site);
+    sendRevalidateRequest(null, site, repoId);
 }
 
 function sendRevalidateNode(nodeId, nodePath, repoId) {
@@ -108,21 +108,21 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
 
     const site = getSite(nodeId, repoId);
 
-    sendRevalidateRequest(contentPath, site);
+    sendRevalidateRequest(contentPath, site, repoId);
 }
 
-function sendRevalidateRequest(contentPath, site) {
+function sendRevalidateRequest(contentPath, site, repoId) {
     log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
 
     const response = httpClientLib.request({
         method: 'GET',
-        url: getFrontendServerUrl(site) + '/_/enonic/cache/purge',
+        url: getFrontendServerUrl(site, repoId) + '/_/enonic/cache/purge',
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
         queryParams: {
             path: contentPath,
-            token: getFrontendServerToken(site),
+            token: getFrontendServerToken(site, repoId),
         },
         followRedirects: false,
     });
