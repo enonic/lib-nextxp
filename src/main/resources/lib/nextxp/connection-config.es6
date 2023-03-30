@@ -27,8 +27,8 @@ export function getSite(pathOrId, repoId) {
     }
 }
 
-exports.getFrontendServerUrl = (site) => {
-    const projectName = getProjectName();
+exports.getFrontendServerUrl = (site, repoId) => {
+    const projectName = getProjectName(repoId);
     const siteName = site?._name;
 
     // check if the app is used to configure multiple sites
@@ -44,8 +44,8 @@ exports.getFrontendServerUrl = (site) => {
     return url.replace(trailingSlashPattern, '');
 }
 
-exports.getFrontendServerToken = (site) => {
-    const projectName = getProjectName();
+exports.getFrontendServerToken = (site, repoId) => {
+    const projectName = getProjectName(repoId);
     const siteName = site?._name;
 
     // check if the app is used to configure multiple sites
@@ -61,13 +61,15 @@ exports.getFrontendServerToken = (site) => {
     return token;
 }
 
-const getProjectName = () => {
-    const context = contextLib.get();
-    let project = 'default';
-    if (context?.repository) {
-        project = context.repository.replace('com.enonic.cms.', '');
+const getProjectName = (repoId) => {
+    let fullRepoName;
+    if (repoId) {
+        fullRepoName = repoId;
+    } else {
+        const context = contextLib.get();
+        fullRepoName = context?.repository || 'com.enonic.cms.default';
     }
-    return project;
+    return fullRepoName.replace('com.enonic.cms.', '');
 }
 
 exports.getProjectName = getProjectName;
