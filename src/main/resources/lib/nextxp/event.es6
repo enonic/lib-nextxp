@@ -136,7 +136,7 @@ function sendRevalidateRequest(contentPath, site, repoId) {
 
     let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, repoId);
     if (response.status === 404) {
-        log.warn('Cache purge endpoint is not available, trying /api/revalidate');
+        log.warning('Cache purge endpoint is not available, trying /api/revalidate');
         response = doSendRequest('/api/revalidate', contentPath, site, repoId);
     }
 
