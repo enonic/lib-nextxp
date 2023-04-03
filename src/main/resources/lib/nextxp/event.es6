@@ -134,9 +134,23 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
 function sendRevalidateRequest(contentPath, site, repoId) {
     log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
 
-    const response = httpClientLib.request({
+    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, repoId);
+    if (response.status === 404) {
+        log.warn('Cache purge endpoint is not available, trying /api/revalidate');
+        response = doSendRequest('/api/revalidate', contentPath, site, repoId);
+    }
+
+    if (response.status !== 200) {
+        log.warning(`Revalidation of '${contentPath ?? 'everything'}' status: ${response.status}`);
+    } else {
+        log.debug(`Revalidation of [${contentPath ?? 'everything'}] done`);
+    }
+}
+
+function doSendRequest(url, contentPath, site, repoId) {
+    return httpClientLib.request({
         method: 'GET',
-        url: getFrontendServerUrl(site, repoId) + '/_/enonic/cache/purge',
+        url: getFrontendServerUrl(site, repoId) + url,
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
@@ -146,9 +160,4 @@ function sendRevalidateRequest(contentPath, site, repoId) {
         },
         followRedirects: false,
     });
-    if (response.status !== 200) {
-        log.warning(`Revalidation of '${contentPath ?? 'everything'}' status: ${response.status}`);
-    } else {
-        log.debug(`Revalidation of [${contentPath ?? 'everything'}] done`);
-    }
 }
