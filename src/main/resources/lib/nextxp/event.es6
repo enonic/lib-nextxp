@@ -5,6 +5,7 @@ const httpClientLib = require('/lib/http-client');
 const projectLib = require('/lib/xp/project');
 const contextLib = require('/lib/xp/context');
 const nodeLib = require('/lib/xp/node');
+
 const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
 
 /*
@@ -12,6 +13,8 @@ const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-con
 * to initialize node events listener for all nextjs projects
 * */
 const REPOS = [];
+
+const OLD_PATHS_CACHE = [];
 
 export function subscribe() {
     REPOS.push(...queryNextjsRepos());
@@ -92,26 +95,44 @@ function subscribeToNodeEvents() {
             let reposUpdated = false;
             for (let i = 0; i < event.data.nodes.length; i++) {
                 const node = event.data.nodes[i];
+                const isMaster = node.branch === 'master';
+                const isMove = isMoveEvent(event);
 
-                if (node.branch !== 'master' || !node.path.startsWith('/content/')) {
-                    // continue to the next node until it's content from master
+                if (!node.path.startsWith('/content/') || !isMaster && !isMove) {
+                    // continue to the next node until it's content related event from master or move event from draft
                     continue;
                 }
 
-                if (!reposUpdated) {
+                if (isMaster && !reposUpdated) {
                     // update repos list in case a nextjs site was added to an existing repo
                     reposUpdated = true;
                     refreshNextjsRepos();
                 }
 
                 if (REPOS.indexOf(node.repo) >= 0) {
-                    sendRevalidateAll(node.id, node.path, node.repo);
-                    break;
+                    if (isMove) {
+                        OLD_PATHS_CACHE.push({
+                            id: node.id,
+                            path: node.path,
+                            repo: node.repo,
+                        })
+                    }
+                    if (isMaster) {
+                        sendRevalidateAll(node.id, node.path, node.repo);
+                        // also invalidate old paths
+                        OLD_PATHS_CACHE.forEach(val => sendRevalidateNode(val.id, val.path, val.repo))
+                        OLD_PATHS_CACHE.length = 0;
+                        break;
+                    }
                 }
             }
         }
     });
     log.info(`Subscribed to content update events for repos: ${REPOS}`);
+}
+
+function isMoveEvent(event) {
+    return event.type === 'node.moved' || event.type === 'node.renamed'
 }
 
 function sendRevalidateAll(nodeId, nodePath, repoId) {
