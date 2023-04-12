@@ -21,7 +21,7 @@ public class DebounceExecutor
         } );
     }
 
-    public ScheduledFuture<Object> debounce( Callable<Object> task, long delay )
+    public synchronized ScheduledFuture<Object> debounce( Callable<Object> task, long delay )
     {
         if ( this.future != null  )
         {
