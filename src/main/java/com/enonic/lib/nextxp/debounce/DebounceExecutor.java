@@ -23,7 +23,7 @@ public class DebounceExecutor
 
     public ScheduledFuture<Object> debounce( Callable<Object> task, long delay )
     {
-        if ( this.future != null && !this.future.isDone() )
+        if ( this.future != null  )
         {
             this.future.cancel( false );
         }
