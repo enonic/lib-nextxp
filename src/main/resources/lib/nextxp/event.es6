@@ -7,6 +7,8 @@ const contextLib = require('/lib/xp/context');
 const nodeLib = require('/lib/xp/node');
 const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
 
+const debouncer = __.newBean('com.enonic.lib.nextxp.debounce.DebounceExecutor');
+
 /*
 * Use this function in your apps main.js file
 * to initialize node events listener for all nextjs projects
@@ -117,7 +119,7 @@ function subscribeToNodeEvents() {
 function sendRevalidateAll(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
-    sendRevalidateRequest(null, site, repoId);
+    debouncer.debounce(() => sendRevalidateRequest(null, site, repoId), 500)
 }
 
 function sendRevalidateNode(nodeId, nodePath, repoId) {
@@ -128,6 +130,7 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
 
     const site = getSite(nodeId, repoId);
 
+    // do not debounce this one, because we need to send every individual revalidate request
     sendRevalidateRequest(contentPath, site, repoId);
 }
 
