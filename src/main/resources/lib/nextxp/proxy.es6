@@ -89,6 +89,7 @@ function okResponse(libHttpResponse) {
         body: libHttpResponse.body || libHttpResponse.bodyStream,
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
+        postProcess: libHttpResponse.postProcess || false,
         headers,
     }
 }
@@ -222,7 +223,7 @@ function doRequest(requestContext, counter) {
             response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode, isCss, nextjsUrl);
         }
 
-        response.postProcess = isHtml
+        response.postProcess = false
 
 
         log.debug(`<--- [${response.status}]: ${frontendUrl}
