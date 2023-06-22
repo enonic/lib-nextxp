@@ -4,9 +4,12 @@ const cacheLib = require('/lib/cache');
 
 const {
     XP_RENDER_MODE_HEADER,
+    XP_PROJECT_ID_HEADER,
     trailingSlashPattern,
     getFrontendServerUrl,
     getFrontendServerToken,
+    getProjectName,
+    hashCode,
 } = require('./connection-config');
 const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
 const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
@@ -100,6 +103,7 @@ function doRequest(requestContext, counter) {
         xpSiteUrl,
         componentSubPath,
         nextjsUrl,
+        projectName,
     } = requestContext;
 
     let nextjsToken = getNextjsTokenCookie();
@@ -119,15 +123,16 @@ function doRequest(requestContext, counter) {
     if (!nextjsToken) {
         log.debug('No nextjs token cached, getting one at: ' + frontendUrl);
     } else if (!nextjsData) {
-        log.debug('Nextjs token is present, but there is no data for ' + originalReq.mode + ' mode cached, so getting one at: ' + frontendUrl);
+        log.debug('Nextjs token is present, but there is no data so getting one at: ' + frontendUrl);
     }
     const headers = {
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
+        [XP_PROJECT_ID_HEADER]: projectName,
         xpBaseUrl: xpSiteUrl,
         jsessionid: getJSessionId(originalReq),
     };
     if (hadNextCookies) {
-        log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}] = ${nextjsToken} for: ${frontendUrl}`);
+        log.debug(`Using cached nextjs token and data`);
         headers['cookie'] = `${NEXT_TOKEN}=${nextjsToken}; ${NEXT_DATA}=${nextjsData}`;
     }
 
@@ -149,8 +154,6 @@ function doRequest(requestContext, counter) {
         body: null, // JSON.stringify({ variables: {} }),
         followRedirects: false,  // we handle it manually to control headers
     }
-
-    log.debug(`---> [${originalReq.mode}]: ${frontendUrl}`);
 
     try {
         const response = httpClientLib.request(proxyRequest);
@@ -224,11 +227,6 @@ function doRequest(requestContext, counter) {
 
         response.postProcess = isHtml
 
-
-        log.debug(`<--- [${response.status}]: ${frontendUrl}
-                contentType: ${response.contentType}
-                singleComponent: ${renderSingleComponent}`);
-
         return (!isOk && renderSingleComponent)
             ? errorResponse(frontendUrl, response.status, response.message, proxyRequest, true)
             : okResponse(response);
@@ -279,8 +277,12 @@ const proxy = function (req) {
 
     const nextjsUrl = getFrontendServerUrl(site);
     const nextjsSecret = getFrontendServerToken(site);
+    const projectName = getProjectName();
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
+
+    log.debug('\n\nURL: ' + frontendRequestPath + (componentSubPath ? ' [' + componentSubPath + ']' : '') +
+        '\nbasePath: ' + xpSiteUrl + '\nmode=' + req.mode + '\nbranch=' + req.branch + '\nproject=' + projectName + '\n');
 
     if (error) {
         return {
@@ -288,7 +290,7 @@ const proxy = function (req) {
         };
     }
 
-    initNextjsCookieName(req, site);
+    initNextjsCookieName(req, projectName, site);
 
     const requestContext = {
         request: req,
@@ -297,6 +299,7 @@ const proxy = function (req) {
         componentSubPath,
         nextjsUrl,
         nextjsSecret,
+        projectName,
     }
 
     return doRequest(requestContext, 0);
@@ -326,7 +329,7 @@ function setNextjsTokenCookie(token) {
     return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => token);
 }
 
-function initNextjsCookieName(request, site) {
+function initNextjsCookieName(request, project, site) {
     let paramString;
     if (request.params) {
         const params = Object.create(request.params);
@@ -337,8 +340,10 @@ function initNextjsCookieName(request, site) {
         paramString = '';
     }
     // create separate data for different params too
-    COOKIE_DATA_KEY = `NEXTJS_DATA_BY_${getJSessionId(request)}_FOR_${request.mode}_AT_${site._name}_WITH_${paramString}`;
-    COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_AT_${site._name}`;
+    const hash = hashCode(`${getJSessionId(request)}_${request.mode}_${project}_${site._name}_${paramString}`)
+    COOKIE_DATA_KEY = `NEXTJS_DATA_${hash}`;
+    COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_${site._name}`;
+    log.debug('Cookie names:\ntoken=' + COOKIE_TOKEN_KEY + '\ndata=' + COOKIE_DATA_KEY);
 }
 
 function removeNextjsDataCookie(silent) {

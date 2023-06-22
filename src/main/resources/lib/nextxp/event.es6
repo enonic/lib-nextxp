@@ -1,4 +1,4 @@
-import {getSite} from "./connection-config";
+import {getSite, XP_PROJECT_ID_HEADER} from "./connection-config";
 
 const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
@@ -178,6 +178,9 @@ function doSendRequest(url, contentPath, site, repoId) {
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
+        headers: {
+            [XP_PROJECT_ID_HEADER]: repoId
+        },
         queryParams: {
             path: contentPath,
             token: getFrontendServerToken(site, repoId),
