@@ -88,7 +88,21 @@ const getConfigFromSite = (site) => {
     }
 }
 
+exports.hashCode = function (str) {
+    let hash = 0,
+        i, chr;
+    if (str.length === 0) return hash;
+    for (i = 0; i < str.length; i++) {
+        chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+}
+
 exports.XP_RENDER_MODE_HEADER = 'Content-Studio-Mode';
+
+exports.XP_PROJECT_ID_HEADER = 'Content-Studio-Project';
 
 exports.XP_RENDER_MODE = {
     INLINE: "inline",
