@@ -8,8 +8,8 @@ const {
     getFrontendServerUrl,
     getFrontendServerToken,
 } = require('./connection-config');
-const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
-const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
+const { getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl } = require("./postprocessing");
+const { relayUriParams, parseFrontendRequestPath, serializeParams } = require("./parsing");
 
 const NEXT_DATA_URL_PATTERN = '/_next/data';
 const NEXT_DATA = '__next_preview_data';
@@ -89,7 +89,7 @@ function okResponse(libHttpResponse) {
         body: libHttpResponse.body || libHttpResponse.bodyStream,
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
-        postProcess: libHttpResponse.postProcess || false,
+        applyFilters: libHttpResponse.applyFilters || false,
         headers,
     }
 }
@@ -223,7 +223,7 @@ function doRequest(requestContext, counter) {
             response.body = getBodyWithReplacedUrls(originalReq, response.body, xpSiteUrlWithoutEditMode, isCss, nextjsUrl);
         }
 
-        response.postProcess = false
+        response.applyFilters = false
 
 
         log.debug(`<--- [${response.status}]: ${frontendUrl}
@@ -281,7 +281,7 @@ const proxy = function (req) {
     const nextjsUrl = getFrontendServerUrl(site);
     const nextjsSecret = getFrontendServerToken(site);
 
-    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
+    const { frontendRequestPath, xpSiteUrl, componentSubPath, error } = parseFrontendRequestPath(req, site);
 
     if (error) {
         return {
