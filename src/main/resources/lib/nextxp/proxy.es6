@@ -63,6 +63,7 @@ function cookiesArrayToObject(array) {
     const cookies = {};
     if (array?.length > 0) {
         array.forEach(cookie => {
+            cookie = cookie?.trim();
             if (!cookie?.length) {
                 return;
             }
@@ -74,6 +75,14 @@ function cookiesArrayToObject(array) {
         });
     }
     return cookies;
+}
+
+function cookiesObjToString(obj) {
+    let result = ''
+    for (const objKey in obj) {
+        result += `${objKey}=${obj[objKey]}; `
+    }
+    return result;
 }
 
 // lib-http response is different from the one controller awaits
@@ -131,10 +140,16 @@ function doRequest(requestContext, counter) {
         xpBaseUrl: xpSiteUrl,
         jsessionid: getJSessionId(originalReq),
     };
+
+    const cookiesObj = originalReq.cookies;
+
     if (hadNextCookies) {
         log.debug(`Using cached nextjs token and data`);
-        headers['cookie'] = `${NEXT_TOKEN}=${nextjsToken}; ${NEXT_DATA}=${nextjsData}`;
+        cookiesObj[NEXT_TOKEN] = nextjsToken;
+        cookiesObj[NEXT_DATA] = nextjsData;
     }
+
+    headers['cookie'] = cookiesObjToString(cookiesObj);
 
     let renderSingleComponent = componentSubPath && componentSubPath !== '' && componentSubPath !== '/';
 
@@ -143,6 +158,9 @@ function doRequest(requestContext, counter) {
         log.error(message);
         return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
     }
+
+    log.debug('Request to: ' + frontendUrl);
+    log.debug('Request headers:\n' + JSON.stringify(headers, null, 2));
 
     const proxyRequest = {
         method: originalReq.method,
@@ -158,7 +176,9 @@ function doRequest(requestContext, counter) {
     try {
         const response = httpClientLib.request(proxyRequest);
 
-        processNextjsSetCookieHeader(response);
+        log.debug('Response headers:\n' + JSON.stringify(response.headers, null, 2));
+
+        processSetCookieHeader(requestContext.request, response);
 
         nextjsToken = getNextjsTokenCookie();
 
@@ -186,7 +206,9 @@ function doRequest(requestContext, counter) {
             // it is a 3xx redirect
             // http client does not seem to set set-cookie header
             // so we do it manually instead of followRedirect: true
-            log.debug(`Following redirect to: ${response.headers['location']}`);
+            const redirectUrl = response.headers['location'];
+            requestContext.redirectUrl = redirectUrl;
+            log.debug(`Following redirect to: ${redirectUrl}`);
 
             return doRequest(requestContext, ++counter);
         }
@@ -238,11 +260,17 @@ function doRequest(requestContext, counter) {
     }
 }
 
-function processNextjsSetCookieHeader(response) {
-    const cookieArray = response.headers['set-cookie'];
+function processSetCookieHeader(request, response) {
+    let cookieArray = response.headers['set-cookie'];
+    if (typeof cookieArray === 'string') {
+        cookieArray = [].concat(cookieArray);
+    }
 
     if (cookieArray?.length > 0) {
         let cookieObject = cookiesArrayToObject(cookieArray);
+        Object.keys(cookieObject).forEach((key) => {
+            request.cookies[key] = cookieObject[key];
+        });
 
         const nextToken = cookieObject[NEXT_TOKEN];
         const nextData = cookieObject[NEXT_DATA];

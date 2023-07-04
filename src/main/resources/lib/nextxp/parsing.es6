@@ -125,7 +125,20 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         frontendRequestPath,
         nextjsUrl,
         nextjsSecret,
+        redirectUrl,
     } = requestContext;
+
+    if (redirectUrl) {
+        // check if there is a redirect URL
+        const parsedURl = parseUrl(redirectUrl);
+        if (parsedURl.protocol) {
+            // it is absolute (returned from the middleware)
+            return redirectUrl;
+        } else {
+            // it is relative (returned from the api/preview route)
+            return `${nextjsUrl}${redirectUrl}`;
+        }
+    }
 
     if (hasNextjsCookies) {
         // TODO: need a more secure way of detecting isRenderable request
@@ -147,14 +160,15 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
 }
 
 export function parseUrl(url) {
-    const urlRegex = new RegExp('((?:https?:\/\/)?[a-zA-Z0-9_.:-]+)([a-zA-Z0-9_.\/-]{2,})?');
+    const urlRegex = new RegExp('(https?:\/\/)?([a-zA-Z0-9_.:-]+)?([a-zA-Z0-9_.\/-]{2,})?');
     const result = urlRegex.exec(url);
-    const basePath = result[2];
+    const basePath = result[3];
     const basePathBuster = basePath &&
         basePath.split('/')
             .reduce((prev, curr) => prev + (curr?.length ? '/..' : ''), '');
     return {
-        domain: result[1],
+        protocol: result[1],
+        domain: result[2],
         basePath,
         basePathBuster,
     };
