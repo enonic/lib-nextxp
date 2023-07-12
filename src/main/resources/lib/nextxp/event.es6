@@ -1,4 +1,4 @@
-import {getSite, XP_PROJECT_ID_HEADER} from "./connection-config";
+import {getSite, XP_PROJECT_ID_HEADER} from "./config";
 
 const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
@@ -6,7 +6,7 @@ const projectLib = require('/lib/xp/project');
 const contextLib = require('/lib/xp/context');
 const nodeLib = require('/lib/xp/node');
 
-const {getFrontendServerUrl, getFrontendServerToken} = require('./connection-config');
+const {getFrontendServerUrl, getFrontendServerToken} = require('./config');
 
 const debouncer = __.newBean('com.enonic.lib.nextxp.debounce.DebounceExecutor');
 
@@ -140,7 +140,7 @@ function isMoveEvent(event) {
 function sendRevalidateAll(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
-    debouncer.debounce(() => sendRevalidateRequest(null, site, repoId), 500)
+    debouncer.debounce(() => sendRevalidateRequest(null, site), 500)
 }
 
 function sendRevalidateNode(nodeId, nodePath, repoId) {
@@ -152,16 +152,16 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
     // do not debounce this one, because we need to send every individual revalidate request
-    sendRevalidateRequest(contentPath, site, repoId);
+    sendRevalidateRequest(contentPath, site);
 }
 
-function sendRevalidateRequest(contentPath, site, repoId) {
+function sendRevalidateRequest(contentPath, site) {
     log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
 
-    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, repoId);
+    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site);
     if (response.status === 404) {
         log.warning('Cache purge endpoint is not available, trying /api/revalidate');
-        response = doSendRequest('/api/revalidate', contentPath, site, repoId);
+        response = doSendRequest('/api/revalidate', contentPath, site);
     }
 
     if (response.status !== 200) {
@@ -171,10 +171,10 @@ function sendRevalidateRequest(contentPath, site, repoId) {
     }
 }
 
-function doSendRequest(url, contentPath, site, repoId) {
+function doSendRequest(url, contentPath, site) {
     return httpClientLib.request({
         method: 'GET',
-        url: getFrontendServerUrl(site, repoId) + url,
+        url: getFrontendServerUrl(site) + url,
         // contentType: 'text/html',
         connectionTimeout: 5000,
         readTimeout: 5000,
@@ -183,7 +183,7 @@ function doSendRequest(url, contentPath, site, repoId) {
         },
         queryParams: {
             path: contentPath,
-            token: getFrontendServerToken(site, repoId),
+            token: getFrontendServerToken(site),
         },
         followRedirects: false,
     });

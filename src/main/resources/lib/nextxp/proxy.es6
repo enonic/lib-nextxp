@@ -8,9 +8,10 @@ const {
     trailingSlashPattern,
     getFrontendServerUrl,
     getFrontendServerToken,
+    readConfigurations,
     getProjectName,
     hashCode,
-} = require('./connection-config');
+} = require('./config');
 const { getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl } = require("./postprocessing");
 const { relayUriParams, parseFrontendRequestPath, serializeParams } = require("./parsing");
 
