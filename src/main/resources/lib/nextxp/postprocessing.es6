@@ -1,5 +1,5 @@
 /** Replace URL refs in both HTML, JS and JSON sources from pointing to frontend-urls to making them sub-urls below the extFrontendProxy service */
-import {trailingSlashPattern} from "./connection-config";
+import {trailingSlashPattern} from "./config";
 import {parseUrl} from "./parsing";
 
 const wSpaces = '[ \\r\\n\\t]*';

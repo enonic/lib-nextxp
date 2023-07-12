@@ -1,5 +1,5 @@
 const portalLib = require('/lib/xp/portal');
-import {trailingSlashPattern} from "./connection-config";
+import {trailingSlashPattern} from "./config";
 
 /**
  * Parses the site-relative path by CONTENT data:
