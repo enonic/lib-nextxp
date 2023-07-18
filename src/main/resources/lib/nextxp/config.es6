@@ -34,7 +34,6 @@ function readConfigurations(force) {
 
         return all;
     }, {});
-    log.info('readConfigurations: ' + JSON.stringify(CONFIGURATIONS, null, 2));
     return CONFIGURATIONS;
 }
 
@@ -48,7 +47,6 @@ function getNextjsConfig(name) {
             secret: 'mySecret',
         }
     }
-    log.info('getNextjsConfig: ' + JSON.stringify(config, null, 2));
     return config;
 }
 
