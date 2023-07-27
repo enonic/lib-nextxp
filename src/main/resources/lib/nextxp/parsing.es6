@@ -153,9 +153,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        const parsedUrl = parseUrl(nextjsUrl);
-        const reqPath = (parsedUrl.basePath ?? '') + frontendRequestPath;
-        return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(reqPath)}${serializeParams(request.params, '&')}`
+        return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(frontendRequestPath)}${serializeParams(request.params, '&')}`
     }
 }
 
