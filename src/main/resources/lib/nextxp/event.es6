@@ -140,7 +140,7 @@ function isMoveEvent(event) {
 function sendRevalidateAll(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
-    debouncer.debounce(() => sendRevalidateRequest(null, site), 500)
+    debouncer.debounce(() => sendRevalidateRequest(null, site, repoId), 500)
 }
 
 function sendRevalidateNode(nodeId, nodePath, repoId) {
@@ -152,16 +152,16 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
     const site = getSite(nodeId, repoId);
 
     // do not debounce this one, because we need to send every individual revalidate request
-    sendRevalidateRequest(contentPath, site);
+    sendRevalidateRequest(contentPath, site, repoId);
 }
 
-function sendRevalidateRequest(contentPath, site) {
-    log.debug('Requesting revalidation of [' + contentPath || 'everything' + ']...');
+function sendRevalidateRequest(contentPath, site, repoId) {
+    log.debug('Requesting revalidation of [' + (contentPath || 'everything') + ']...');
 
-    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site);
+    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, repoId);
     if (response.status === 404) {
         log.warning('Cache purge endpoint is not available, trying /api/revalidate');
-        response = doSendRequest('/api/revalidate', contentPath, site);
+        response = doSendRequest('/api/revalidate', contentPath, site, repoId);
     }
 
     if (response.status !== 200) {
@@ -171,7 +171,7 @@ function sendRevalidateRequest(contentPath, site) {
     }
 }
 
-function doSendRequest(url, contentPath, site) {
+function doSendRequest(url, contentPath, site, repoId) {
     return httpClientLib.request({
         method: 'GET',
         url: getFrontendServerUrl(site) + url,
