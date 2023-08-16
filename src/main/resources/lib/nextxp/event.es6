@@ -1,4 +1,4 @@
-import {getSite, XP_PROJECT_ID_HEADER} from "./config";
+import {getProjectName, getSite, XP_PROJECT_ID_HEADER} from "./config";
 
 const eventLib = require('/lib/xp/event');
 const httpClientLib = require('/lib/http-client');
@@ -158,10 +158,12 @@ function sendRevalidateNode(nodeId, nodePath, repoId) {
 function sendRevalidateRequest(contentPath, site, repoId) {
     log.debug('Requesting revalidation of [' + (contentPath || 'everything') + ']...');
 
-    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, repoId);
+    const projectName = getProjectName(repoId);
+
+    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, projectName);
     if (response.status === 404) {
         log.warning('Cache purge endpoint is not available, trying /api/revalidate');
-        response = doSendRequest('/api/revalidate', contentPath, site, repoId);
+        response = doSendRequest('/api/revalidate', contentPath, site, projectName);
     }
 
     if (response.status !== 200) {
@@ -171,7 +173,7 @@ function sendRevalidateRequest(contentPath, site, repoId) {
     }
 }
 
-function doSendRequest(url, contentPath, site, repoId) {
+function doSendRequest(url, contentPath, site, projectName) {
     return httpClientLib.request({
         method: 'GET',
         url: getFrontendServerUrl(site) + url,
@@ -179,7 +181,7 @@ function doSendRequest(url, contentPath, site, repoId) {
         connectionTimeout: 5000,
         readTimeout: 5000,
         headers: {
-            [XP_PROJECT_ID_HEADER]: repoId
+            [XP_PROJECT_ID_HEADER]: projectName
         },
         queryParams: {
             path: contentPath,
