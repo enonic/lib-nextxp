@@ -44,7 +44,7 @@ function getNextjsConfig(name) {
     if (!config) {
         config = {
             url: 'http://127.0.0.1:3000',
-            secret: 'mySecret',
+            secret: 'mySecretKey',
         }
     }
     return config;
