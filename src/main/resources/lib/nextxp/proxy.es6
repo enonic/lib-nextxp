@@ -8,15 +8,12 @@ const {
     trailingSlashPattern,
     getFrontendServerUrl,
     getFrontendServerToken,
-    readConfigurations,
     getProjectName,
-    hashCode,
 } = require('./config');
-const { getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl } = require("./postprocessing");
-const { relayUriParams, parseFrontendRequestPath, serializeParams } = require("./parsing");
+const {getSingleComponentHtml, getBodyWithReplacedUrls, getPageContributionsWithBaseUrl} = require("./postprocessing");
+const {relayUriParams, parseFrontendRequestPath, serializeParams} = require("./parsing");
 
 const NEXT_DATA_URL_PATTERN = '/_next/data';
-const NEXT_DATA = '__next_preview_data';
 const NEXT_TOKEN = '__prerender_bypass';
 const COOKIE_CACHE = cacheLib.newCache({
     size: 900,   // good enough for 100 sites with 3 render modes per site and 3 sets of query params per page
@@ -27,11 +24,10 @@ const ALLOWED_RESPONSE_HEADERS = [
 ];
 
 
-let COOKIE_DATA_KEY;
 let COOKIE_TOKEN_KEY;
 
-
 const errorResponse = function (url, status, message, req, renderSingleComponent) {
+    log.error(`Error response: ${status} - ${message}`);
     if (status >= 400) {
         const msg = url
             ? `Not fetched from frontend (${url}): ${status} - ${message}`
@@ -60,28 +56,29 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 };
 
-function cookiesArrayToObject(array) {
-    const cookies = {};
-    if (array?.length > 0) {
-        array.forEach(cookie => {
-            cookie = cookie?.trim();
-            if (!cookie?.length) {
-                return;
-            }
-            const indexEq = cookie.indexOf("=");
-            if (indexEq > 0) {
-                const indexSc = cookie.indexOf(";");
-                cookies[cookie.substring(0, indexEq)] = cookie.substring(indexEq + 1, indexSc > 0 ? indexSc : undefined);
-            }
-        });
-    }
-    return cookies;
+function cookiesMapToString(obj) {
+    return Object.keys(obj).map(key => `${key}=${obj[key]}`).join('; ');
 }
 
-function cookiesObjToString(obj) {
+function cookieObjToString(obj) {
     let result = ''
-    for (const objKey in obj) {
-        result += `${objKey}=${obj[objKey]}; `
+    if (obj.value) {
+        result += obj.value;
+    }
+    if (obj.expires) {
+        result += '; Expires=' + obj.expires;
+    }
+    if (obj.domain) {
+        result += '; Domain=' + obj.domain;
+    }
+    if (obj.path) {
+        result += '; Path=' + obj.path;
+    }
+    if (obj.secure) {
+        result += '; Secure';
+    }
+    if (obj.httpOnly) {
+        result += '; HttpOnly';
     }
     return result;
 }
@@ -118,8 +115,7 @@ function doRequest(requestContext, counter) {
     } = requestContext;
 
     let nextjsToken = getNextjsTokenCookie();
-    const nextjsData = getNextjsDataCookie();
-    const hadNextCookies = !!nextjsToken && !!nextjsData;
+    const hadNextCookies = !!nextjsToken;
     let frontendUrl = relayUriParams(requestContext, hadNextCookies);
 
     // When requesting /_next/data, the location is taken from url and will contain
@@ -131,37 +127,32 @@ function doRequest(requestContext, counter) {
         frontendUrl = frontendUrl.replace(xpSiteUrlWithoutTrailingSlash, '');
     }
 
-    if (!nextjsToken) {
-        log.debug('No nextjs token cached, getting one at: ' + frontendUrl);
-    } else if (!nextjsData) {
-        log.debug('Nextjs token is present, but there is no data so getting one at: ' + frontendUrl);
+    const cookiesMap = originalReq.cookies;
+
+    if (!hadNextCookies) {
+        log.debug(`No nextjs token cached, getting one at: ${frontendUrl}`);
+    } else {
+        log.debug(`Using cached nextjs token and data`);
+        cookiesMap[NEXT_TOKEN] = nextjsToken;
     }
+
     const headers = {
         [XP_RENDER_MODE_HEADER]: originalReq.mode,
         [XP_PROJECT_ID_HEADER]: projectName,
         xpBaseUrl: xpSiteUrl,
         jsessionid: getJSessionId(originalReq),
+        cookie: cookiesMapToString(cookiesMap)
     };
-
-    const cookiesObj = originalReq.cookies;
-
-    if (hadNextCookies) {
-        log.debug(`Using cached nextjs token and data`);
-        cookiesObj[NEXT_TOKEN] = nextjsToken;
-        cookiesObj[NEXT_DATA] = nextjsData;
-    }
-
-    headers['cookie'] = cookiesObjToString(cookiesObj);
 
     let renderSingleComponent = componentSubPath && componentSubPath !== '' && componentSubPath !== '/';
 
     if (counter >= 10) {
-        const message = 'Request recursion limit exceeded: ' + counter;
+        const message = `Request recursion limit exceeded: ${counter}`;
         log.error(message);
         return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
     }
 
-    log.debug('Request to: ' + frontendUrl);
+    log.debug(`Request [${originalReq.method}]: ${frontendUrl}`);
     log.debug('Request headers:\n' + JSON.stringify(headers, null, 2));
 
     const proxyRequest = {
@@ -178,9 +169,22 @@ function doRequest(requestContext, counter) {
     try {
         const response = httpClientLib.request(proxyRequest);
 
-        log.debug('Response headers:\n' + JSON.stringify(response.headers, null, 2));
+        log.debug(`Response [${response.status}]: ${frontendUrl}`);
+        log.debug('Response headers: ', JSON.stringify(response.headers, null, 2));
+        log.debug('Response cookies: ', JSON.stringify(response.cookies, null, 2));
 
-        processSetCookieHeader(requestContext.request, response);
+        if (response.status === 308 && !nextjsToken) {
+            // it is a 308 permanent redirect
+            // I.e. when trailing slash was set in config, but not present in request
+            // we don't need to verify nextjs cookies here
+            const redirectUrl = response.headers['location'];
+            requestContext.redirectUrl = redirectUrl;
+            log.debug(`Following redirect [${response.status}] to: ${redirectUrl}`);
+
+            return doRequest(requestContext, ++counter);
+        }
+
+        processNextjsCookie(requestContext.request, response);
 
         nextjsToken = getNextjsTokenCookie();
 
@@ -210,7 +214,7 @@ function doRequest(requestContext, counter) {
             // so we do it manually instead of followRedirect: true
             const redirectUrl = response.headers['location'];
             requestContext.redirectUrl = redirectUrl;
-            log.debug(`Following redirect to: ${redirectUrl}`);
+            log.debug(`Following redirect [${response.status}] to: ${redirectUrl}`);
 
             return doRequest(requestContext, ++counter);
         }
@@ -230,7 +234,7 @@ function doRequest(requestContext, counter) {
             }
             // nextjs cookies have probably expired and server returned empty ones
             // make a new preview request to get new nextjs cookies
-            log.debug(`Renewing nextjs cookies [${COOKIE_DATA_KEY}] at: ${frontendUrl}`);
+            log.debug(`Renewing nextjs cookies [${COOKIE_TOKEN_KEY}] at: ${frontendUrl}`);
 
             return doRequest(requestContext, ++counter);
         }
@@ -262,29 +266,26 @@ function doRequest(requestContext, counter) {
     }
 }
 
-function processSetCookieHeader(request, response) {
-    let cookieArray = response.headers['set-cookie'];
-    if (typeof cookieArray === 'string') {
-        cookieArray = [].concat(cookieArray);
-    }
+function processNextjsCookie(request, response) {
+    let cookieArray = response.cookies;
 
     if (cookieArray?.length > 0) {
-        let cookieObject = cookiesArrayToObject(cookieArray);
-        Object.keys(cookieObject).forEach((key) => {
-            request.cookies[key] = cookieObject[key];
-        });
+        let cookieObject;
 
-        const nextToken = cookieObject[NEXT_TOKEN];
-        const nextData = cookieObject[NEXT_DATA];
+        for (let i = 0; i < cookieArray.length; i++) {
+            const cookieArrayElement = cookieArray[i];
+            if (cookieArrayElement.name === NEXT_TOKEN) {
+                cookieObject = cookieArrayElement;
+                break;
+            }
+        }
 
-        if (nextToken?.length && nextData?.length) {
-            setNextjsTokenCookie(nextToken);
-            setNextjsDataCookie(nextData);
+        if (cookieObject?.value?.length) {
+            setNextjsTokenCookie(cookieObjToString(cookieObject));
 
-        } else if (nextToken !== undefined) {
+        } else if (cookieObject) {
             // next token is empty, usually happens when the token has changed on server
             // filter empty cookies out
-
             removeNextjsTokenCookie();
         }
     }
@@ -309,7 +310,7 @@ const proxy = function (req) {
     const nextjsSecret = getFrontendServerToken(site);
     const projectName = getProjectName();
 
-    const { frontendRequestPath, xpSiteUrl, componentSubPath, error } = parseFrontendRequestPath(req, site);
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
 
     log.debug('\n\nURL: ' + frontendRequestPath + (componentSubPath ? ' [' + componentSubPath + ']' : '') +
         '\nbasePath: ' + xpSiteUrl + '\nmode=' + req.mode + '\nbranch=' + req.branch + '\nproject=' + projectName + '\n');
@@ -320,7 +321,7 @@ const proxy = function (req) {
         };
     }
 
-    initNextjsCookieName(req, projectName, site);
+    initNextjsCookieName(projectName, site);
 
     const requestContext = {
         request: req,
@@ -339,18 +340,8 @@ const getJSessionId = function (req) {
     return req?.cookies['JSESSIONID'];
 }
 
-function getNextjsDataCookie() {
-    return COOKIE_CACHE.get(COOKIE_DATA_KEY, () => undefined);
-}
-
 function getNextjsTokenCookie() {
     return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => undefined);
-}
-
-function setNextjsDataCookie(data) {
-    removeNextjsDataCookie(true);
-    log.debug(`Caching nextjs data [${COOKIE_DATA_KEY}]`);
-    return COOKIE_CACHE.get(COOKIE_DATA_KEY, () => data);
 }
 
 function setNextjsTokenCookie(token) {
@@ -359,28 +350,10 @@ function setNextjsTokenCookie(token) {
     return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => token);
 }
 
-function initNextjsCookieName(request, project, site) {
-    let paramString;
-    if (request.params) {
-        const params = Object.create(request.params);
-        // don't save nextjs cache buster because we will have to ask for new preview token every time
-        delete params['ts'];
-        paramString = serializeParams(params);
-    } else {
-        paramString = '';
-    }
+function initNextjsCookieName(project, site) {
     // create separate data for different params too
-    const hash = hashCode(`${getJSessionId(request)}_${request.mode}_${project}_${site._name}_${paramString}`)
-    COOKIE_DATA_KEY = `NEXTJS_DATA_${hash}`;
     COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_${site._name}`;
-    log.debug('Cookie names:\ntoken=' + COOKIE_TOKEN_KEY + '\ndata=' + COOKIE_DATA_KEY);
-}
-
-function removeNextjsDataCookie(silent) {
-    if (!silent) {
-        log.debug(`Removing nextjs data [${COOKIE_DATA_KEY}]`);
-    }
-    COOKIE_CACHE.remove(COOKIE_DATA_KEY);
+    log.debug(`Cookie names:\ntoken: ${COOKIE_TOKEN_KEY}`);
 }
 
 function removeNextjsTokenCookie(silent) {

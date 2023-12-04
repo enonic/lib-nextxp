@@ -33,7 +33,7 @@ const replaceCssUrls = (body, proxyUrlWithSlash) => {
 }
 
 const replaceNextApiUrls = (body, proxyUrlWithSlash, nextjsUrl) => {
-    const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:_next(?!\/image)|api)[^'"\`]+)${quotes}`, "gmi");
+    const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:_next(?!\/image)|api(?!\/media))[^'"\`]+)${quotes}`, "gmi");
 
     const parsedNextjsUrl = parseUrl(nextjsUrl);
     const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(trailingSlashPattern, '');
