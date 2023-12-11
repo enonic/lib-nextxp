@@ -159,12 +159,7 @@ function sendRevalidateRequest(contentPath, site, repoId) {
     log.debug('Requesting revalidation of [' + (contentPath || 'everything') + ']...');
 
     const projectName = getProjectName(repoId);
-
-    let response = doSendRequest('/_/enonic/cache/purge', contentPath, site, projectName);
-    if (response.status === 404) {
-        log.warning('Cache purge endpoint is not available, trying /api/revalidate');
-        response = doSendRequest('/api/revalidate', contentPath, site, projectName);
-    }
+    let response = doSendRequest('/api/revalidate', contentPath, site, projectName);
 
     if (response.status !== 200) {
         log.warning(`Revalidation of '${contentPath ?? 'everything'}' status: ${response.status}`);
@@ -187,6 +182,6 @@ function doSendRequest(url, contentPath, site, projectName) {
             path: contentPath,
             token: getFrontendServerToken(site),
         },
-        followRedirects: false,
+        followRedirects: true,
     });
 }
