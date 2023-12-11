@@ -56,31 +56,26 @@ const errorResponse = function (url, status, message, req, renderSingleComponent
     }
 };
 
-function cookiesMapToString(obj) {
-    return Object.keys(obj).map(key => `${key}=${obj[key]}`).join('; ');
+function cookiesArrayToObject(array) {
+    const cookies = {};
+    if (array?.length > 0) {
+        array.forEach(cookie => {
+            cookie = cookie?.trim();
+            if (!cookie?.length) {
+                return;
+            }
+            const indexEq = cookie.indexOf("=");
+            const indexSc = cookie.indexOf(";");
+            if (indexEq > 0) {
+                cookies[cookie.substring(0, indexEq)] = cookie.substring(indexEq + 1, indexSc);
+            }
+        });
+    }
+    return cookies;
 }
 
-function cookieObjToString(obj) {
-    let result = ''
-    if (obj.value) {
-        result += obj.value;
-    }
-    if (obj.expires) {
-        result += '; Expires=' + obj.expires;
-    }
-    if (obj.domain) {
-        result += '; Domain=' + obj.domain;
-    }
-    if (obj.path) {
-        result += '; Path=' + obj.path;
-    }
-    if (obj.secure) {
-        result += '; Secure';
-    }
-    if (obj.httpOnly) {
-        result += '; HttpOnly';
-    }
-    return result;
+function cookiesMapToString(obj) {
+    return Object.keys(obj).map(key => `${key}=${obj[key]}`).join('; ');
 }
 
 // lib-http response is different from the one controller awaits
@@ -132,7 +127,7 @@ function doRequest(requestContext, counter) {
     if (!hadNextCookies) {
         log.debug(`No nextjs token cached, getting one at: ${frontendUrl}`);
     } else {
-        log.debug(`Using cached nextjs token and data`);
+        log.debug(`Using cached nextjs token [${COOKIE_TOKEN_KEY}]: ${nextjsToken}`);
         cookiesMap[NEXT_TOKEN] = nextjsToken;
     }
 
@@ -152,8 +147,7 @@ function doRequest(requestContext, counter) {
         return errorResponse(frontendUrl, 500, message, originalReq, renderSingleComponent);
     }
 
-    log.debug(`Request [${originalReq.method}]: ${frontendUrl}`);
-    log.debug('Request headers:\n' + JSON.stringify(headers, null, 2));
+    log.debug(`REQUEST [${originalReq.method}]: ${frontendUrl}\n${JSON.stringify(headers, null, 2)}`);
 
     const proxyRequest = {
         method: originalReq.method,
@@ -169,9 +163,9 @@ function doRequest(requestContext, counter) {
     try {
         const response = httpClientLib.request(proxyRequest);
 
-        log.debug(`Response [${response.status}]: ${frontendUrl}`);
-        log.debug('Response headers: ', JSON.stringify(response.headers, null, 2));
-        log.debug('Response cookies: ', JSON.stringify(response.cookies, null, 2));
+        log.debug(`RESPONSE [${response.status}]: ${frontendUrl}
+        headers:\n${JSON.stringify(response.headers, null, 2)}
+        cookies:\n${JSON.stringify(response.cookies, null, 2)}`);
 
         if (response.status === 308 && !nextjsToken) {
             // it is a 308 permanent redirect
@@ -184,7 +178,7 @@ function doRequest(requestContext, counter) {
             return doRequest(requestContext, ++counter);
         }
 
-        processNextjsCookie(requestContext.request, response);
+        processSetCookieHeader(requestContext.request, response);
 
         nextjsToken = getNextjsTokenCookie();
 
@@ -234,7 +228,8 @@ function doRequest(requestContext, counter) {
             }
             // nextjs cookies have probably expired and server returned empty ones
             // make a new preview request to get new nextjs cookies
-            log.debug(`Renewing nextjs cookies [${COOKIE_TOKEN_KEY}] at: ${frontendUrl}`);
+            // remember to clear any redirect if present
+            requestContext.redirectUrl = undefined;
 
             return doRequest(requestContext, ++counter);
         }
@@ -266,26 +261,27 @@ function doRequest(requestContext, counter) {
     }
 }
 
-function processNextjsCookie(request, response) {
-    let cookieArray = response.cookies;
+function processSetCookieHeader(request, response) {
+    let cookieArray = response.headers['set-cookie'];
+    if (typeof cookieArray === 'string') {
+        cookieArray = [].concat(cookieArray);
+    }
 
     if (cookieArray?.length > 0) {
-        let cookieObject;
+        let cookieObject = cookiesArrayToObject(cookieArray);
+        Object.keys(cookieObject).forEach((key) => {
+            request.cookies[key] = cookieObject[key];
+        });
 
-        for (let i = 0; i < cookieArray.length; i++) {
-            const cookieArrayElement = cookieArray[i];
-            if (cookieArrayElement.name === NEXT_TOKEN) {
-                cookieObject = cookieArrayElement;
-                break;
-            }
-        }
+        const nextToken = cookieObject[NEXT_TOKEN];
 
-        if (cookieObject?.value?.length) {
-            setNextjsTokenCookie(cookieObjToString(cookieObject));
+        if (nextToken?.length) {
+            setNextjsTokenCookie(nextToken);
 
-        } else if (cookieObject) {
+        } else if (nextToken !== undefined) {
             // next token is empty, usually happens when the token has changed on server
             // filter empty cookies out
+
             removeNextjsTokenCookie();
         }
     }
@@ -353,7 +349,6 @@ function setNextjsTokenCookie(token) {
 function initNextjsCookieName(project, site) {
     // create separate data for different params too
     COOKIE_TOKEN_KEY = `NEXTJS_TOKEN_${site._name}`;
-    log.debug(`Cookie names:\ntoken: ${COOKIE_TOKEN_KEY}`);
 }
 
 function removeNextjsTokenCookie(silent) {
