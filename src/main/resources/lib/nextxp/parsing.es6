@@ -140,16 +140,15 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         }
     }
 
-    if (hasNextjsCookies) {
-        // TODO: need a more secure way of detecting isRenderable request
-        const isRenderableRequest = request.method === 'HEAD' && request.params['mode'] !== undefined;
-        if (isRenderableRequest) {
-            return `${nextjsUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
-        } else {
-            return `${nextjsUrl}${frontendRequestPath}${serializeParams(request.params, '?')}`;
-        }
+    const token = encodeURIComponent(nextjsSecret);
+
+    // TODO: need a more secure way of detecting isRenderable request
+    const isRenderableRequest = request.method === 'HEAD' && request.params['mode'] !== undefined;
+    if (isRenderableRequest) {
+        return `${nextjsUrl}/api/renderable?token=${token}&path=${encodeURIComponent(frontendRequestPath)}`;
+    } else if (hasNextjsCookies) {
+        return `${nextjsUrl}${frontendRequestPath}${serializeParams(request.params, '?')}`;
     } else {
-        const token = encodeURIComponent(nextjsSecret);
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
