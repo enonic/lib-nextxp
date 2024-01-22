@@ -10,14 +10,14 @@ plugins {
 }
 
 dependencies {
-    compileOnly "com.enonic.xp:core-api:${xpVersion}"
-    compile "com.enonic.xp:lib-event:${xpVersion}"
-    compile "com.enonic.xp:lib-portal:${xpVersion}"
-    compile "com.enonic.xp:lib-project:${xpVersion}"
-    compile "com.enonic.xp:lib-node:${xpVersion}"
-    compile "com.enonic.xp:lib-context:${xpVersion}"
-    compile "com.enonic.lib:lib-cache:2.2.0"
-    compile "com.enonic.lib:lib-http-client:3.2.2"
+    implementation "com.enonic.xp:core-api:${xpVersion}"
+    implementation "com.enonic.xp:lib-event:${xpVersion}"
+    implementation "com.enonic.xp:lib-portal:${xpVersion}"
+    implementation "com.enonic.xp:lib-project:${xpVersion}"
+    implementation "com.enonic.xp:lib-node:${xpVersion}"
+    implementation "com.enonic.xp:lib-context:${xpVersion}"
+    implementation "com.enonic.lib:lib-cache:2.2.0"
+    implementation "com.enonic.lib:lib-http-client:3.2.2"
 
     //compile "com.enonic.xp:lib-io:${xpVersion}"
     // compile "com.enonic.xp:lib-repo:${xpVersion}"
@@ -54,4 +54,5 @@ task babelLib(type: NodeTask) {
 babelLib.dependsOn += 'processResources'
 babelLib.dependsOn += npmInstall
 
+javadoc.dependsOn += 'babelLib'
 jar.dependsOn += 'babelLib'
