@@ -147,22 +147,31 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
     if (isRenderableRequest) {
         return `${nextjsUrl}/api/renderable?token=${token}&path=${encodeURIComponent(frontendRequestPath)}`;
     } else if (hasNextjsCookies) {
-        return `${nextjsUrl}${frontendRequestPath}${serializeParams(request.params, '?')}`;
+        return `${nextjsUrl}${escapeSquareBracketsForLibHttpClient(frontendRequestPath)}${serializeParams(request.params, '?')}`;
     } else {
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
         }
-        return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(frontendRequestPath)}${serializeParams(request.params, '&')}`;
+        return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(frontendRequestPath)}${serializeParams(request.params,
+            '&')}`;
     }
+}
+
+function escapeSquareBracketsForLibHttpClient(str) {
+    if (!str?.length) {
+        return str;
+    }
+    return str.replace(/[\[\]]/g, (match) => {
+        return match === '[' ? '%5B' : '%5D';
+    });
 }
 
 export function parseUrl(url) {
     const urlRegex = new RegExp('(https?:\/\/)?([a-zA-Z0-9_.:-]+)?([a-zA-Z0-9_.\/-]{2,})?');
     const result = urlRegex.exec(url);
     const basePath = result[3];
-    const basePathBuster = basePath &&
-        basePath.split('/')
-            .reduce((prev, curr) => prev + (curr?.length ? '/..' : ''), '');
+    const basePathBuster = basePath && basePath.split('/')
+        .reduce((prev, curr) => prev + (curr?.length ? '/..' : ''), '');
     return {
         protocol: result[1],
         domain: result[2],
