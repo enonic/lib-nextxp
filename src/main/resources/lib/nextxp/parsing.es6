@@ -147,7 +147,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
     if (isRenderableRequest) {
         return `${nextjsUrl}/api/renderable?token=${token}&path=${encodeURIComponent(frontendRequestPath)}`;
     } else if (hasNextjsCookies) {
-        return `${nextjsUrl}${encodeURI(frontendRequestPath)}${serializeParams(request.params, '?')}`;
+        return `${nextjsUrl}${escapeSquareBracketsForLibHttpClient(frontendRequestPath)}${serializeParams(request.params, '?')}`;
     } else {
         if (!token?.length) {
             log.warning('Nextjs API token is missing, did you forget to set it in site/properties config ?');
@@ -155,6 +155,15 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(frontendRequestPath)}${serializeParams(request.params,
             '&')}`;
     }
+}
+
+function escapeSquareBracketsForLibHttpClient(str) {
+    if (!str?.length) {
+        return str;
+    }
+    return str.replace(/[\[\]]/g, (match) => {
+        return match === '[' ? '%5B' : '%5D';
+    });
 }
 
 export function parseUrl(url) {
