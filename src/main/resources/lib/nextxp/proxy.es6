@@ -308,6 +308,11 @@ const proxy = function (req) {
 
     const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
 
+    if (frontendRequestPath === '/_next/webpack-hmr') {
+        //TODO: req.scheme is http, whereas it should have been ws, so can not use it for matching
+        return errorResponse(frontendRequestPath, 501, 'WS:// requests are not supported yet', req);
+    }
+
     log.debug('\n\nURL: ' + frontendRequestPath + (componentSubPath ? ' [' + componentSubPath + ']' : '') +
         '\nbasePath: ' + xpSiteUrl + '\nmode=' + req.mode + '\nbranch=' + req.branch + '\nproject=' + projectName + '\n');
 

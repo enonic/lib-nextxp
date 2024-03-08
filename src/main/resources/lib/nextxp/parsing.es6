@@ -158,6 +158,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
 }
 
 function escapeSquareBracketsForLibHttpClient(str) {
+    // not using encodeURI() because it may already be encoded, and we don't want to double-encode
     if (!str?.length) {
         return str;
     }
