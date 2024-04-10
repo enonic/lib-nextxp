@@ -146,7 +146,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         if (isRenderableRequest) {
             return `${nextjsUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
         } else {
-            return `${nextjsUrl}${frontendRequestPath}${serializeParams(request.params, '?')}`;
+            return `${nextjsUrl}${escapeSquareBracketsForLibHttpClient(frontendRequestPath)}${serializeParams(request.params, '?')}`;
         }
     } else {
         const token = encodeURIComponent(nextjsSecret);
@@ -155,6 +155,16 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         }
         return `${nextjsUrl}/api/preview?token=${token}&path=${encodeURIComponent(frontendRequestPath)}${serializeParams(request.params, '&')}`
     }
+}
+
+function escapeSquareBracketsForLibHttpClient(str) {
+    // not using encodeURI() because it may already be encoded, and we don't want to double-encode
+    if (!str?.length) {
+        return str;
+    }
+    return str.replace(/[\[\]]/g, (match) => {
+        return match === '[' ? '%5B' : '%5D';
+    });
 }
 
 export function parseUrl(url) {
