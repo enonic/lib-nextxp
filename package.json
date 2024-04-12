@@ -1,6 +1,6 @@
 {
     "name": "lib-nextxp",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Allows XP to use external server for server-side rendering of content preview",
     "main": "",
     "directories": {},
