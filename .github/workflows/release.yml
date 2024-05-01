@@ -53,7 +53,7 @@ jobs:
             registry-url: 'https://registry.npmjs.org'
 
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       - name: Get publishing variables
         id: publish_vars
