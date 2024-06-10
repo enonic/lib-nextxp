@@ -16,7 +16,7 @@ dependencies {
     implementation "com.enonic.xp:lib-project:${xpVersion}"
     implementation "com.enonic.xp:lib-node:${xpVersion}"
     implementation "com.enonic.xp:lib-context:${xpVersion}"
-    implementation "com.enonic.lib:lib-cache:2.2.0"
+    implementation "com.enonic.lib:lib-cache:2.2.1"
     implementation "com.enonic.lib:lib-http-client:3.2.2"
 
     //compile "com.enonic.xp:lib-io:${xpVersion}"
