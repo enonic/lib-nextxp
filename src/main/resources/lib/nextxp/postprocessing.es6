@@ -5,6 +5,7 @@ import {parseUrl} from "./parsing";
 const wSpaces = '[ \\r\\n\\t]*';
 const alphaNum = 'a-zA-Z0-9_\\.\\-';
 const quotes = `['"\\\`]`
+const localhostPattern = /localhost/;
 
 export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss, nextjsUrl) => {
     let result;
@@ -39,15 +40,20 @@ const replaceNextApiUrls = (body, proxyUrlWithSlash, nextjsUrl) => {
     const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(trailingSlashPattern, '');
 
     return body.replace(nextApiPattern, (match, url, quotes, domain, basePath, location) => {
-        return buildFullUrl(match, !!url, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash);
+        return buildFullUrl(match, url, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash);
     });
 }
 
 
-const buildFullUrl = (match, isUrlConstructor, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash) => {
+const buildFullUrl = (match, urlConstructor, quotes, domain, basePath, location, parsedNextjsUrl, proxyUrlWithoutSlash) => {
     let result;
-    let isAbsoluteFrontendUrl = domain === parsedNextjsUrl.domain;
-    if (isUrlConstructor || isAbsoluteFrontendUrl) {
+    let isAbsoluteFrontendUrl
+    if (domain) {
+        const normDomain = domain.replace(localhostPattern, '127.0.0.1');
+        const normNextjsDomain = `${parsedNextjsUrl.protocol}${parsedNextjsUrl.domain}`.replace(localhostPattern, '127.0.0.1');
+        isAbsoluteFrontendUrl = normDomain === normNextjsDomain;
+    }
+    if (urlConstructor || isAbsoluteFrontendUrl) {
         // keep the link, as it is an url constructor (can't be relative) or has absolute url to frontend
         result = domain + (isAbsoluteFrontendUrl && basePath ? basePath : '');
     } else {
@@ -59,7 +65,7 @@ const buildFullUrl = (match, isUrlConstructor, quotes, domain, basePath, locatio
         // so put a basePathBuster because xp doesn't need to have a basePath
         result = parsedNextjsUrl.basePathBuster + result
     }
-    return `${quotes}${result + location}${quotes}`;
+    return `${urlConstructor ?? ''}${quotes}${result + location}${quotes}`;
 }
 
 
