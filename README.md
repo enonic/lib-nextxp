@@ -4,7 +4,7 @@ XP-side proxy that can relay rendering to an external server (using it to render
 in content studio).
 
 The lib adds a proxy controller (_/lib/nextxp/proxy.js_) that requires
-a [controller mapping](https://developer.enonic.com/docs/xp/stable/cms/mappings) in the host app's _site.xml_ (see "
+a [controller mapping](https://developer.enonic.com/docs/xp/stable/framework/mappings) in the host app's _site.xml_ (see "
 installation" above).
 The proxy sends requests to `<frontendUrl>/X/Y/Z`, and handles any errors or returns the response so that is rendered as
 a preview in
