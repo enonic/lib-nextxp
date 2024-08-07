@@ -306,7 +306,7 @@ const proxy = function (req) {
     const nextjsSecret = getFrontendServerToken(site);
     const projectName = getProjectName();
 
-    const {frontendRequestPath, xpSiteUrl, componentSubPath, error} = parseFrontendRequestPath(req, site);
+    const {frontendRequestPath, xpSiteUrl, componentSubPath, error, contentPath} = parseFrontendRequestPath(req, site);
 
     if (frontendRequestPath === '/_next/webpack-hmr') {
         //TODO: req.scheme is http, whereas it should have been ws, so can not use it for matching
@@ -332,6 +332,7 @@ const proxy = function (req) {
         nextjsUrl,
         nextjsSecret,
         projectName,
+        contentPath,
     }
 
     return doRequest(requestContext, 0);
