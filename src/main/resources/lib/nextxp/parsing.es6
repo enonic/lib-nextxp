@@ -112,6 +112,7 @@ export const parseFrontendRequestPath = (req, site) => {
 
     return {
         frontendRequestPath: siteRelativeReqPath,
+        contentPath: content?._path,
         xpSiteUrl,
         componentSubPath
     }
@@ -126,6 +127,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
         nextjsUrl,
         nextjsSecret,
         redirectUrl,
+        contentPath,
     } = requestContext;
 
     if (redirectUrl) {
@@ -141,8 +143,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
     }
 
     if (hasNextjsCookies) {
-        // TODO: need a more secure way of detecting isRenderable request
-        const isRenderableRequest = request.method === 'HEAD' && request.params['mode'] !== undefined;
+        const isRenderableRequest = request.method === 'HEAD' && contentPath.endsWith(frontendRequestPath);
         if (isRenderableRequest) {
             return `${nextjsUrl}/_renderable?contentPath=${encodeURIComponent(frontendRequestPath)}`;
         } else {
