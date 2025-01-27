@@ -5,6 +5,7 @@ const httpClientLib = require('/lib/http-client');
 const projectLib = require('/lib/xp/project');
 const contextLib = require('/lib/xp/context');
 const nodeLib = require('/lib/xp/node');
+const clusterLib = require('/lib/xp/cluster');
 
 const {getFrontendServerUrl, getFrontendServerToken} = require('./config');
 
@@ -23,6 +24,10 @@ export function subscribe() {
 
     subscribeToNodeEvents();
     subscribeToRepoEvents();
+}
+
+function shouldHandleEvent(event) {
+    return clusterLib.isMaster();
 }
 
 function queryNextjsRepos() {
@@ -92,6 +97,12 @@ function subscribeToNodeEvents() {
         type: 'node.*',
         localOnly: false,
         callback: function (event) {
+
+            if (!shouldHandleEvent(event)) {
+                log.debug(`Got [${event.type}] event: leaving it to master node`);
+                return;
+            }
+
             log.debug(`Got [${event.type}] event: ${JSON.stringify(event, null, 2)}`);
 
             let reposUpdated = false;
@@ -106,9 +117,12 @@ function subscribeToNodeEvents() {
                 }
 
                 if (isMaster && !reposUpdated) {
-                    // update repos list in case a nextjs site was added to an existing repo
-                    reposUpdated = true;
-                    refreshNextjsRepos();
+                    const isSitePushed = isSitePublished(event.type, node);
+                    if (isSitePushed) {
+                        // update repos list in case a nextjs site was added to an existing repo
+                        reposUpdated = true;
+                        refreshNextjsRepos();
+                    }
                 }
 
                 if (REPOS.indexOf(node.repo) >= 0) {
@@ -135,6 +149,23 @@ function subscribeToNodeEvents() {
 
 function isMoveEvent(event) {
     return event.type === 'node.moved' || event.type === 'node.renamed'
+}
+
+function isSitePublished(type, node) {
+    if (type !== 'node.pushed') {
+        return false;
+    }
+
+    const repo = nodeLib.connect({
+        repoId: node.repo,
+        branch: 'master',
+    });
+
+    const nodeData = repo && repo.get({
+        key: node.id
+    });
+
+    return nodeData && nodeData.type === "portal:site";
 }
 
 function sendRevalidateAll(nodeId, nodePath, repoId) {
