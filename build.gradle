@@ -9,8 +9,11 @@ plugins {
     id "com.github.node-gradle.node" version "7.1.0"
 }
 
-sourceCompatibility = JavaVersion.VERSION_11
-targetCompatibility = sourceCompatibility
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
 
 dependencies {
     implementation "com.enonic.xp:core-api:${xpVersion}"
@@ -28,10 +31,10 @@ dependencies {
     // testCompile "com.enonic.xp:testing:${xpVersion}"
 }
 
-/*node {
+node {
     download = true
-    version = '10'
-}*/
+    version = '20.18.0'
+}
 
 repositories {
     mavenLocal()
@@ -46,8 +49,10 @@ if (project.hasProperty("dev") || project.hasProperty("development")) {
 
 def LIB_FOLDER = "nextxp"
 
-task babelLib(type: NodeTask) {
+tasks.register('babelLib', NodeTask) {
     group 'enonic xp'
+
+    dependsOn npmInstall, processResources
 
     script = file('node_modules/@babel/cli/bin/babel.js')
     args = ["build/resources/main/lib/${LIB_FOLDER}", "--out-dir", "build/resources/main/lib/${LIB_FOLDER}"]
@@ -55,8 +60,6 @@ task babelLib(type: NodeTask) {
     inputs.dir "build/resources/main/lib/${LIB_FOLDER}"
     outputs.dir("build/resources/main/lib/${LIB_FOLDER}")
 }
-babelLib.dependsOn += 'processResources'
-babelLib.dependsOn += npmInstall
 
 javadoc.dependsOn += 'babelLib'
 jar.dependsOn += 'babelLib'
