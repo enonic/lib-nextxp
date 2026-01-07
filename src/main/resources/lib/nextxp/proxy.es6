@@ -339,7 +339,7 @@ const proxy = function (req) {
 };
 
 const getJSessionId = function (req) {
-    return req?.cookies['JSESSIONID'];
+    return req?.cookies['JSESSIONID'] || req?.cookies['jsessionid'];
 }
 
 function getNextjsTokenCookie() {
