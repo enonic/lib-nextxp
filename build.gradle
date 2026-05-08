@@ -5,30 +5,20 @@ plugins {
     id 'java'
     id 'maven-publish'
     id 'com.enonic.defaults' version '2.1.6'
-    id 'com.enonic.xp.base' version '3.6.2'
+    id 'com.enonic.xp.base'
     id "com.github.node-gradle.node" version "7.1.0"
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
-    }
-}
-
 dependencies {
-    implementation "com.enonic.xp:core-api:${xpVersion}"
-    implementation "com.enonic.xp:lib-event:${xpVersion}"
-    implementation "com.enonic.xp:lib-portal:${xpVersion}"
-    implementation "com.enonic.xp:lib-project:${xpVersion}"
-    implementation "com.enonic.xp:lib-node:${xpVersion}"
-    implementation "com.enonic.xp:lib-context:${xpVersion}"
-    implementation "com.enonic.xp:lib-cluster:${xpVersion}"
+    implementation xplibs.api.core
+    implementation xplibs.event
+    implementation xplibs.portal
+    implementation xplibs.project
+    implementation xplibs.node
+    implementation xplibs.context
+    implementation xplibs.cluster
     implementation "com.enonic.lib:lib-cache:2.2.1"
     implementation "com.enonic.lib:lib-http-client:3.2.2"
-
-    //compile "com.enonic.xp:lib-io:${xpVersion}"
-    // compile "com.enonic.xp:lib-repo:${xpVersion}"
-    // testCompile "com.enonic.xp:testing:${xpVersion}"
 }
 
 node {
@@ -41,11 +31,6 @@ repositories {
     mavenCentral()
     xp.enonicRepo()
 }
-/*
-def BUILD_ENV = "production"
-if (project.hasProperty("dev") || project.hasProperty("development")) {
-    BUILD_ENV = "development"
-}*/
 
 def LIB_FOLDER = "nextxp"
 
