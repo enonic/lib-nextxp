@@ -29,7 +29,7 @@ node {
 repositories {
     mavenLocal()
     mavenCentral()
-    xp.enonicRepo()
+    xp.enonicRepo('dev')
 }
 
 def LIB_FOLDER = "nextxp"
