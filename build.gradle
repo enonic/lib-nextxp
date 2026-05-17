@@ -17,8 +17,8 @@ dependencies {
     implementation xplibs.node
     implementation xplibs.context
     implementation xplibs.cluster
-    implementation "com.enonic.lib:lib-cache:3.0.0-SNAPSHOT"
-    implementation "com.enonic.lib:lib-http-client:4.0.0-SNAPSHOT"
+    implementation libs.lib.cache
+    implementation libs.lib.http.client
 }
 
 node {

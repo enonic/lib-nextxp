@@ -1,0 +1,7 @@
+[versions]
+cache = "3.0.0-SNAPSHOT"
+http-client = "4.0.0-SNAPSHOT"
+
+[libraries]
+lib-cache = { module = "com.enonic.lib:lib-cache", version.ref = "cache" }
+lib-http-client = { module = "com.enonic.lib:lib-http-client", version.ref = "http-client" }
