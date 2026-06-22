@@ -90,8 +90,12 @@ function okResponse(libHttpResponse) {
         return all;
     }, {});
 
+
+    const isSvg = libHttpResponse.contentType === 'image/svg+xml';
+
+    // Force binaryStream for svg or they fail to render in XP
     return {
-        body: libHttpResponse.body || libHttpResponse.bodyStream,
+        body: !isSvg && libHttpResponse.body || libHttpResponse.bodyStream,
         status: libHttpResponse.status,
         contentType: libHttpResponse.contentType,
         applyFilters: libHttpResponse.applyFilters || false,
