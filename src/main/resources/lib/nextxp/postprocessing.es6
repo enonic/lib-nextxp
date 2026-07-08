@@ -11,7 +11,7 @@ export const getBodyWithReplacedUrls = (req, body, proxyUrlWithSlash, isCss, nex
     let result;
     if (!isCss) {
         // Replace next static URLs (e.g. "/_next/..., "/api/... etc)
-        result = replaceNextApiUrls(body, proxyUrlWithSlash, nextjsUrl);
+        result = replaceNextApiUrls(mergeFlightPushSegments(body), proxyUrlWithSlash, nextjsUrl);
     } else {
         // Don't do next static urls replacement in css
         result = body;
@@ -33,8 +33,16 @@ const replaceCssUrls = (body, proxyUrlWithSlash) => {
     return body.replace(cssUrlPattern, `url($1${proxyUrlWithSlash}$2$1)`)
 }
 
+// React streams the RSC flight payload as multiple <script>self.__next_f.push([1,"..."])</script> segments
+// and may split a URL across two of them, hiding it from the URL patterns below.
+// The flight client concatenates all pushed strings anyway, so merging adjacent segments is safe.
+const flightSegmentBoundaryPattern = /"\]\)<\/script><script[^>]*>self\.__next_f\.push\(\[1,"/g;
+
+const mergeFlightPushSegments = (body) => body.replace(flightSegmentBoundaryPattern, '');
+
 const replaceNextApiUrls = (body, proxyUrlWithSlash, nextjsUrl) => {
-    const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:_next(?!\/image)|api(?!\/media))[^'"\`]+)${quotes}`, "gmi");
+    const nextApiPattern = new RegExp(`(URL\\(${wSpaces})?(${quotes})((?:https?:\/\/)?[${alphaNum}:]{3,})?([${alphaNum}\/]{2,})?(\/(?:(?:_next(?!\/image)|api(?!\/media))[^'"\`]+|manifest\\.(?:json|webmanifest)[^'"\`]*))${quotes}`,
+        "gmi");
 
     const parsedNextjsUrl = parseUrl(nextjsUrl);
     const proxyUrlWithoutSlash = proxyUrlWithSlash.replace(trailingSlashPattern, '');
