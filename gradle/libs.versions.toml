@@ -1,5 +1,5 @@
 [versions]
-cache = "3.0.0"
+cache = "3.0.1"
 http-client = "4.0.1"
 
 [libraries]
