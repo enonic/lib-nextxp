@@ -4,8 +4,7 @@ export const trailingSlashPattern = /\/*$/;
 
 function getSiteInContext(pathOrId) {
     return contentLib.getSite({
-        key: pathOrId || '/',
-        applicationKey: app.name,
+        key: pathOrId || '/'
     });
 }
 
@@ -57,13 +56,14 @@ export function listConfigurations() {
     });
 }
 
-export function getSite(pathOrId, repoId) {
+export function getSite(pathOrId, repoId, branch) {
     const context = contextLib.get();
-    if (context.repository !== repoId) {
+    if (context.repository !== repoId || (branch && context.branch !== branch)) {
         try {
             return contextLib.run({
                 principals: ["role:system.admin"],
                 repository: repoId,
+                branch: branch,
             }, function () {
                 return getSiteInContext(pathOrId);
             });
@@ -97,14 +97,12 @@ export function getProjectName(repoId) {
 }
 
 function getConfigFromSite(site) {
-    const siteConfigs = site?.data?.siteConfig;
-    if (!siteConfigs?.length) {
-        return;
-    }
+    const siteConfig = site?.data?.siteConfig;
+    const siteConfigs = Array.isArray(siteConfig) ? siteConfig : [siteConfig];
 
     for (let i = 0; i < siteConfigs.length; i++) {
         const datum = siteConfigs[i];
-        if (datum.applicationKey === app.name) {
+        if (datum?.applicationKey === app.name) {
             return datum.config;
         }
     }

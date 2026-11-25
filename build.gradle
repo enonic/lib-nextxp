@@ -15,6 +15,7 @@ dependencies {
     implementation xplibs.portal
     implementation xplibs.project
     implementation xplibs.node
+    implementation xplibs.content
     implementation xplibs.context
     implementation xplibs.cluster
     implementation libs.lib.cache

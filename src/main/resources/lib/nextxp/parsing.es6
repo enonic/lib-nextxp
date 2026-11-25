@@ -53,6 +53,9 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
 
         } else if (req.mode === 'edit') {
             // In edit mode, look for ID match between request path and the content ID, and fall back to previously detected siteRelativeContentPath
+            if (!content?._id) {
+                return {error: 404};
+            }
             const editRootUrl = xpSiteUrl.replace(new RegExp(`${site._name}/$`), '');
             if (req.path === `${editRootUrl}${content._id}`) {
                 siteRelativeReqPath = siteRelativeContentPath;
@@ -89,7 +92,10 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
  */
 export const parseFrontendRequestPath = (req, site) => {
 
-    const content = portalLib.getContent() || {};
+    if (!site) {
+        return {error: 404};
+    }
+    const content = portalLib.getContent();
 
     const xpSiteUrl = portalLib.pageUrl({
         path: site._path,
@@ -103,12 +109,17 @@ export const parseFrontendRequestPath = (req, site) => {
     // Compare: do the request and the current content agree on what's the relative path?
     // If yes, it's a content item path: pass it directly to the frontend.
     // If no, it's either a non-existing content (return a 404), or it's <domain>/<siteUrl>/<proxyMatchPattern>/<frontendRequestPath>. Use nonContentPath to determine <frontendRequestPath> and pass that to the frontend.
-    const siteRelativeContentPath = getSiteRelativeContentPath(content._path, site._path);
+    const siteRelativeContentPath = getSiteRelativeContentPath(content?._path ?? '', site._path);
 
     const {
         siteRelativeReqPath,
-        componentSubPath
+        componentSubPath,
+        error
     } = getSiteRelativeRequestPath(req, xpSiteUrl, site, content, siteRelativeContentPath);
+
+    if (error) {
+        return {error};
+    }
 
     return {
         frontendRequestPath: siteRelativeReqPath,
@@ -144,7 +155,7 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
 
     const token = encodeURIComponent(nextjsSecret);
 
-    const isRenderableRequest = request.method === 'HEAD' && contentPath.endsWith(frontendRequestPath);
+    const isRenderableRequest = request.method === 'HEAD' && contentPath?.endsWith(frontendRequestPath);
     if (isRenderableRequest) {
         return `${nextjsUrl}/api/renderable?token=${token}&path=${encodeURIComponent(frontendRequestPath)}`;
     } else if (hasNextjsCookies) {
