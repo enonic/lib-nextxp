@@ -14,7 +14,7 @@ import {trailingSlashPattern} from "./config";
  * @returns {string} Site relative content path
  */
 const getSiteRelativeContentPath = (contentPath = "", sitePath) => {
-    if (!contentPath.startsWith(sitePath)) {
+    if (contentPath.indexOf(sitePath) !== 0) {
         return contentPath
     }
     const siteRelativeContentPath = contentPath.substring(sitePath.length)
@@ -46,7 +46,7 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
     let siteRelativeReqPath = null;
     let componentSubPath = undefined;
 
-    if (!req.path.startsWith(xpSiteUrl)) {
+    if (req.path.indexOf(xpSiteUrl) !== 0) {
         if (req.path.replace(trailingSlashPattern, '/') === xpSiteUrl) {
             // On root site content item, detects slash deviation and just returns the root slash
             siteRelativeReqPath = '';
@@ -60,7 +60,7 @@ const getSiteRelativeRequestPath = (req, xpSiteUrl, site, content, siteRelativeC
             if (req.path === `${editRootUrl}${content._id}`) {
                 siteRelativeReqPath = siteRelativeContentPath;
 
-            } else if (req.path.startsWith(`${editRootUrl}${content._id}/_/component/`)) {
+            } else if (req.path.indexOf(`${editRootUrl}${content._id}/_/component/`) === 0) {
                 componentSubPath = req.path.substring(`${editRootUrl}${content._id}/_/component`.length);
                 siteRelativeReqPath = siteRelativeContentPath + '/_/component' + componentSubPath;
 
@@ -155,7 +155,9 @@ export const relayUriParams = (requestContext, hasNextjsCookies) => {
 
     const token = encodeURIComponent(nextjsSecret);
 
-    const isRenderableRequest = request.method === 'HEAD' && contentPath?.endsWith(frontendRequestPath);
+    const isRenderableRequest = request.method === 'HEAD' && contentPath != null &&
+        contentPath.length >= frontendRequestPath.length &&
+        contentPath.indexOf(frontendRequestPath, contentPath.length - frontendRequestPath.length) !== -1;
     if (isRenderableRequest) {
         return `${nextjsUrl}/api/renderable?token=${token}&path=${encodeURIComponent(frontendRequestPath)}`;
     } else if (hasNextjsCookies) {

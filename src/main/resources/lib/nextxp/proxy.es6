@@ -121,7 +121,7 @@ function doRequest(requestContext, counter) {
     // xp base url (i.e. /admin/site/next/inline/hmdb/page.json)
     // that needs to be removed before sending to next server
     // NB: frontpage will have no trailing slash so remove it first!
-    if (frontendUrl.includes(NEXT_DATA_URL_PATTERN)) {
+    if (frontendUrl.indexOf(NEXT_DATA_URL_PATTERN) !== -1) {
         const xpSiteUrlWithoutTrailingSlash = xpSiteUrl.replace(trailingSlashPattern, '');
         frontendUrl = frontendUrl.replace(xpSiteUrlWithoutTrailingSlash, '');
     }

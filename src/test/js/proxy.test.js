@@ -39,6 +39,7 @@ test('missing site and missing edit-mode content return 404', t => {
 });
 
 test('caches preview token and relays a contentless HEAD data request', t => {
+    t.mock.method(String.prototype, 'includes', () => { throw new Error('includes is unavailable on Nashorn'); });
     const calls = [];
     http.request = req => {
         calls.push(req);

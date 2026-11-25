@@ -104,7 +104,7 @@ function subscribeToNodeEvents() {
                 const isMaster = node.branch === 'master';
                 const isMove = isMoveEvent(event);
 
-                if (!node.path.startsWith('/content/') || !isMaster && !isMove) {
+                if (node.path.indexOf('/content/') !== 0 || !isMaster && !isMove) {
                     // continue to the next node until it's content related event from master or move event from draft
                     continue;
                 }
