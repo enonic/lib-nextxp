@@ -121,7 +121,7 @@ function doRequest(requestContext, counter) {
     // xp base url (i.e. /admin/site/next/inline/hmdb/page.json)
     // that needs to be removed before sending to next server
     // NB: frontpage will have no trailing slash so remove it first!
-    if (frontendUrl.contains(NEXT_DATA_URL_PATTERN)) {
+    if (frontendUrl.indexOf(NEXT_DATA_URL_PATTERN) !== -1) {
         const xpSiteUrlWithoutTrailingSlash = xpSiteUrl.replace(trailingSlashPattern, '');
         frontendUrl = frontendUrl.replace(xpSiteUrlWithoutTrailingSlash, '');
     }
@@ -347,13 +347,12 @@ const getJSessionId = function (req) {
 }
 
 function getNextjsTokenCookie() {
-    return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => undefined);
+    return COOKIE_CACHE.getIfPresent(COOKIE_TOKEN_KEY);
 }
 
 function setNextjsTokenCookie(token) {
-    removeNextjsTokenCookie(true);
     log.debug(`Caching nextjs token [${COOKIE_TOKEN_KEY}] = ${token}`);
-    return COOKIE_CACHE.get(COOKIE_TOKEN_KEY, () => token);
+    COOKIE_CACHE.put(COOKIE_TOKEN_KEY, token);
 }
 
 function initNextjsCookieName(project, site) {
@@ -368,9 +367,10 @@ function removeNextjsTokenCookie(silent) {
     COOKIE_CACHE.remove(COOKIE_TOKEN_KEY);
 }
 
-exports.get = proxy
+exports.get = proxy;
+exports.head = proxy;
 
-exports.handleError = proxy;
+exports.handleError = error => proxy(error.request || error);
 
 exports.getPage = function (req) {
     req.headers = req.headers || {};

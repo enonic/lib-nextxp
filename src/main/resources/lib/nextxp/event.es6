@@ -26,9 +26,7 @@ export function subscribe() {
     subscribeToRepoEvents();
 }
 
-function shouldHandleEvent(event) {
-    return clusterLib.isMaster();
-}
+
 
 function queryNextjsRepos() {
     const currentContext = contextLib.get();
@@ -98,11 +96,6 @@ function subscribeToNodeEvents() {
         localOnly: false,
         callback: function (event) {
 
-            if (!shouldHandleEvent(event)) {
-                log.debug(`Got [${event.type}] event: leaving it to master node`);
-                return;
-            }
-
             log.debug(`Got [${event.type}] event: ${JSON.stringify(event, null, 2)}`);
 
             let reposUpdated = false;
@@ -111,7 +104,7 @@ function subscribeToNodeEvents() {
                 const isMaster = node.branch === 'master';
                 const isMove = isMoveEvent(event);
 
-                if (!node.path.startsWith('/content/') || !isMaster && !isMove) {
+                if (node.path.indexOf('/content/') !== 0 || !isMaster && !isMove) {
                     // continue to the next node until it's content related event from master or move event from draft
                     continue;
                 }
@@ -131,12 +124,16 @@ function subscribeToNodeEvents() {
                             id: node.id,
                             path: node.path,
                             repo: node.repo,
+                            branch: node.branch,
                         })
                     }
                     if (isMaster) {
-                        sendRevalidateAll(node.id, node.path, node.repo);
-                        // also invalidate old paths
-                        OLD_PATHS_CACHE.forEach(val => sendRevalidateNode(val.id, val.path, val.repo))
+                        // Keep repository and move caches current on followers for leadership changes.
+                        if (clusterLib.isLeader()) {
+                            sendRevalidateAll(node.id, node.repo, node.branch);
+                            // also invalidate old paths
+                            OLD_PATHS_CACHE.forEach(val => sendRevalidateNode(val.id, val.path, val.repo, val.branch))
+                        }
                         OLD_PATHS_CACHE.length = 0;
                         break;
                     }
@@ -158,7 +155,7 @@ function isSitePublished(type, node) {
 
     const repo = nodeLib.connect({
         repoId: node.repo,
-        branch: 'master',
+        branch: node.branch,
     });
 
     const nodeData = repo && repo.get({
@@ -168,19 +165,19 @@ function isSitePublished(type, node) {
     return nodeData && nodeData.type === "portal:site";
 }
 
-function sendRevalidateAll(nodeId, nodePath, repoId) {
-    const site = getSite(nodeId, repoId);
+function sendRevalidateAll(nodeId, repoId, branch) {
+    const site = getSite(nodeId, repoId, branch);
 
     debouncer.debounce(() => sendRevalidateRequest(null, site, repoId), 500)
 }
 
-function sendRevalidateNode(nodeId, nodePath, repoId) {
+function sendRevalidateNode(nodeId, nodePath, repoId, branch) {
     let contentPath = nodePath.replace(/\/content\/[^\s\/]+/, '');
     if (!contentPath || contentPath.trim().length === 0) {
         contentPath = '/';
     }
 
-    const site = getSite(nodeId, repoId);
+    const site = getSite(nodeId, repoId, branch);
 
     // do not debounce this one, because we need to send every individual revalidate request
     sendRevalidateRequest(contentPath, site, repoId);
